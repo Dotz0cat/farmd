@@ -72,6 +72,12 @@ static void toggle_dbus_watch(DBusWatch* watch, void* data);
 
 static void dbus_watch_cb(int fd, short events, void* user_data);
 
+static dbus_bool_t add_dbus_timeout(DBusTimeout* timeout, void* data);
+static void remove_dbus_timeout(DBusTimeout* timeout, void* data);
+static void toggle_dbus_timeout(DBusTimeout* timeout, void* data);
+
+static void dbus_timeout_cb(int fd, short events, void* user_data);
+
 static void handle_dbus_dispatch_status(DBusConnection* conn, DBusDispatchStatus status, void* data);
 static void handle_dbus_dispatch_cb(int fd, short events, void* user_data);
 

@@ -6,7 +6,7 @@ src = ['src/main.c', 'src/loop.c', 'src/save.c']
 deps = [dependency('libconfig'), dependency('libevent'), dependency('sqlite3'), dependency('dbus-1')]
 #cc.find_library('m', required : false)
 add_global_arguments('-g', language : 'c')
-add_global_arguments('-O2', language : 'c')
+#add_global_arguments('-O2', language : 'c')
 add_global_arguments('-Wall', language : 'c')
 add_global_arguments('-Wextra', language : 'c')
 add_global_arguments('-Wshadow', language : 'c')

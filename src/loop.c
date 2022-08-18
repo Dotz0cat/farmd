@@ -80,6 +80,11 @@ void loop_run(loop_context* context) {
         abort();
     }
 
+    ret = dbus_connection_set_timeout_functions(conn, add_dbus_timeout, remove_dbus_timeout, toggle_dbus_timeout, context, NULL);
+    if (ret != TRUE) {
+        abort();
+    }
+
     ret = dbus_connection_add_filter(conn, dbus_message_filter, context, NULL);
     if (ret != TRUE) {
         abort();
@@ -230,51 +235,48 @@ static void dbus_watch_cb(int fd, short events, void* user_data) {
 }
 
 //
-static dbus_bool_t add_dbus_timeout(DBusWatch* watch, void* data) {
-    if (!dbus_watch_get_enabled(watch)) {
+static dbus_bool_t add_dbus_timeout(DBusTimeout* timeout, void* data) {
+    if (!dbus_timeout_get_enabled(timeout)) {
         return FALSE;
     }
     loop_context* context = data;
 
-    int fd = dbus_watch_get_unix_fd(watch);
+    struct event* event = event_new(context->event_box->base, -1, EV_TIMEOUT|EV_PERSIST, dbus_timeout_cb, timeout);
 
-    unsigned int flags = dbus_watch_get_flags(watch);
-    short cond = EV_PERSIST;
-    if (flags & DBUS_WATCH_READABLE) {
-        cond |= EV_READ;
-    }
-    if (flags & DBUS_WATCH_WRITABLE){
-        cond |= EV_WRITE;
-    }
+    int ms = dbus_timeout_get_interval(timeout);
+    struct timeval tv = {
+        .tv_sec = ms / 1000,
+        .tv_usec = (ms % 1000) * 1000,
+    };
+    event_add(event, &tv);
 
-    struct event* event = event_new(context->event_box->base, fd, cond, NULL, context);
-
-    event_add(event, NULL);
-
-    dbus_watch_set_data(watch, event, NULL);
+    dbus_timeout_set_data(timeout, event, NULL);
 
     return TRUE;
 }
 
-static void remove_dbus_timeout(DBusWatch* watch, void* data) {
-    struct event* event = dbus_watch_get_data(watch);
+static void remove_dbus_timeout(DBusTimeout* timeout, void* data) {
+    struct event* event = dbus_timeout_get_data(timeout);
 
     if (event != NULL) {
         event_free(event);
     }
 
-    dbus_watch_set_data(watch, NULL, NULL);
+    dbus_timeout_set_data(timeout, NULL, NULL);
 }
 
-static void toggle_dbus_timeout(DBusWatch* watch, void* data) {
-    if (dbus_watch_get_enabled(watch)) {
-        add_dbus_watch(watch, data);
+static void toggle_dbus_timeout(DBusTimeout* timeout, void* data) {
+    if (dbus_timeout_get_enabled(timeout)) {
+        add_dbus_timeout(timeout, data);
     }
     else {
-        remove_dbus_watch(watch, data);
+        remove_dbus_timeout(timeout, data);
     }
 }
-//
+
+static void dbus_timeout_cb(int fd, short events, void* user_data) {
+    dbus_timeout_handle( (DBusTimeout*) user_data);
+}
 
 static void handle_dbus_dispatch_status(DBusConnection* conn, DBusDispatchStatus status, void* data) {
     loop_context* context = data;
