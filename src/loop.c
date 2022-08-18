@@ -28,6 +28,7 @@ void loop_run(loop_context* context) {
         abort();
     }
 
+    //set up basic signals
     context->event_box->signal_sigquit = evsignal_new(context->event_box->base, SIGQUIT, sig_int_quit_term_cb, (void*) context);
     if (!context->event_box->signal_sigquit || event_add(context->event_box->signal_sigquit, NULL) < 0) abort();
 
@@ -46,12 +47,79 @@ void loop_run(loop_context* context) {
     context->event_box->signal_sigusr2 = evsignal_new(context->event_box->base, SIGUSR2, sigusr2_cb, (void*) context);
     if (!context->event_box->signal_sigusr2 || event_add(context->event_box->signal_sigusr2, NULL) < 0) abort();
 
+    //dbus stuff
+    DBusError err;
+
+    dbus_error_init(&err);
+
+    DBusConnection* conn = dbus_bus_get(DBUS_BUS_SESSION, &err);
+
+    if (conn == NULL || dbus_error_is_set(&err)) {
+        syslog(LOG_WARNING, "could not connect to dbus");
+        dbus_error_free(&err);
+        return;
+    }
+
+    int ret = dbus_bus_request_name(conn, "Dotz0cat.Farmd", 0, &err);
+
+    if (ret != DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER || dbus_error_is_set(&err)) {
+        syslog(LOG_WARNING, "could not become primary owner of bus.");
+        dbus_error_free(&err);
+        return;
+    }
+
+    context->conn = conn;
+
+    context->event_box->dbus_dispatch = event_new(context->event_box->base, -1, EV_TIMEOUT, handle_dbus_dispatch_cb, (void*) context);
+    if (context->event_box->dbus_dispatch == NULL) {
+        abort();
+    }
+
+    ret = dbus_connection_set_watch_functions(conn, add_dbus_watch, remove_dbus_watch, toggle_dbus_watch, context, NULL);
+    if (ret != 0) {
+        abort();
+    }
+
+    ret = dbus_connection_add_filter(conn, dbus_message_filter, context, NULL);
+    if (ret != TRUE) {
+        abort();
+    }
+
+    dbus_connection_set_dispatch_status_function(conn, handle_dbus_dispatch_status, context, NULL);
+
+    DBusObjectPathVTable* vtable = malloc(sizeof(DBusObjectPathVTable));
+    if (vtable == NULL) {
+        abort();
+    }
+
+    vtable->message_function = dbus_message_handler;
+    vtable->unregister_function = dbus_unregister;
+
+    ret = dbus_connection_register_object_path(conn, "/Dotz0cat/farmd", vtable, context);
+    if (ret == FALSE) {
+        abort();
+    }
 
 
 
 
+    /*
+    Message message = new Message("/remote/object/path", "MethodName", arg1, arg2);
+          Connection connection = getBusConnection();
+          connection.send(message);
+          Message reply = connection.waitForReply(message);
+          if (reply.isError()) {
+             
+          } else {
+             Object returnValue = reply.getReturnValue();
+          }
 
 
+    set up signals that can be sent. Use for stuff like Harvest is ready and new contract is in.
+    */
+
+
+    //run loop
     event_base_loop(context->event_box->base, EVLOOP_NO_EXIT_ON_EMPTY);
 
     //clean up
@@ -93,5 +161,155 @@ static void sigusr1_cb(evutil_socket_t sig, short events, void* user_data) {
 }
 
 static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data) {
+    return;
+}
+
+static dbus_bool_t add_dbus_watch(DBusWatch* watch, void* data) {
+    if (!dbus_watch_get_enabled(watch)) {
+        return FALSE;
+    }
+    loop_context* context = data;
+
+    int fd = dbus_watch_get_unix_fd(watch);
+
+    unsigned int flags = dbus_watch_get_flags(watch);
+    short cond = EV_PERSIST;
+    if (flags & DBUS_WATCH_READABLE) {
+        cond |= EV_READ;
+    }
+    if (flags & DBUS_WATCH_WRITABLE){
+        cond |= EV_WRITE;
+    }
+
+    watch_list w;
+    w.watch = watch;
+    w.context = context;
+
+    struct event* event = event_new(context->event_box->base, fd, cond, dbus_watch_cb, &w);
+
+    event_add(event, NULL);
+
+    dbus_watch_set_data(watch, event, NULL);
+
+    return TRUE;
+}
+
+static void remove_dbus_watch(DBusWatch* watch, void* data) {
+    struct event* event = dbus_watch_get_data(watch);
+
+    if (event != NULL) {
+        event_free(event);
+    }
+
+    dbus_watch_set_data(watch, NULL, NULL);
+}
+
+static void toggle_dbus_watch(DBusWatch* watch, void* data) {
+    if (dbus_watch_get_enabled(watch)) {
+        add_dbus_watch(watch, data);
+    }
+    else {
+        remove_dbus_watch(watch, data);
+    }
+}
+
+static void dbus_watch_cb(int fd, short events, void* user_data) {
+    watch_list* list = user_data;
+
+    unsigned int flags = 0;
+    if (events & EV_READ)
+        flags |= DBUS_WATCH_READABLE;
+    if (events & EV_WRITE)
+        flags |= DBUS_WATCH_WRITABLE;
+
+     if (dbus_watch_handle(list->watch, flags) == FALSE) {
+        syslog(LOG_WARNING, "error with dbus_watch_handle");
+     }
+
+     handle_dbus_dispatch_status(list->context->conn, DBUS_DISPATCH_DATA_REMAINS, list->context);
+}
+
+//
+static dbus_bool_t add_dbus_timeout(DBusWatch* watch, void* data) {
+    if (!dbus_watch_get_enabled(watch)) {
+        return FALSE;
+    }
+    loop_context* context = data;
+
+    int fd = dbus_watch_get_unix_fd(watch);
+
+    unsigned int flags = dbus_watch_get_flags(watch);
+    short cond = EV_PERSIST;
+    if (flags & DBUS_WATCH_READABLE) {
+        cond |= EV_READ;
+    }
+    if (flags & DBUS_WATCH_WRITABLE){
+        cond |= EV_WRITE;
+    }
+
+    struct event* event = event_new(context->event_box->base, fd, cond, NULL, context);
+
+    event_add(event, NULL);
+
+    dbus_watch_set_data(watch, event, NULL);
+
+    return TRUE;
+}
+
+static void remove_dbus_timeout(DBusWatch* watch, void* data) {
+    struct event* event = dbus_watch_get_data(watch);
+
+    if (event != NULL) {
+        event_free(event);
+    }
+
+    dbus_watch_set_data(watch, NULL, NULL);
+}
+
+static void toggle_dbus_timeout(DBusWatch* watch, void* data) {
+    if (dbus_watch_get_enabled(watch)) {
+        add_dbus_watch(watch, data);
+    }
+    else {
+        remove_dbus_watch(watch, data);
+    }
+}
+//
+
+static void handle_dbus_dispatch_status(DBusConnection* conn, DBusDispatchStatus status, void* data) {
+    loop_context* context = data;
+
+    if (status == DBUS_DISPATCH_DATA_REMAINS) {
+        struct timeval tv = {
+            .tv_sec = 0,
+            .tv_usec = 0,
+        };
+        event_add(context->event_box->dbus_dispatch, &tv);
+    }
+}
+
+static void handle_dbus_dispatch_cb(int fd, short events, void* user_data) {
+    loop_context* context = user_data;
+
+    DBusConnection* conn = context->conn;
+
+    if (dbus_connection_get_dispatch_status(conn) == DBUS_DISPATCH_DATA_REMAINS) {
+        dbus_connection_dispatch(conn);
+    }
+}
+
+static DBusHandlerResult dbus_message_filter(DBusConnection* conn, DBusMessage* msg, void* data) {
+    //just an introsector
+    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+static DBusHandlerResult dbus_message_handler(DBusConnection* conn, DBusMessage* msg, void* data) {
+    //handle here
+    loop_context* context = data;
+
+    return DBUS_HANDLER_RESULT_HANDLED;
+}
+
+static void dbus_unregister(DBusConnection* conn, void* data) {
     return;
 }

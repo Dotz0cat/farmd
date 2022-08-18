@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    init_daemon();
+    //init_daemon();
 
     loop_context* context;
     context = malloc(sizeof(loop_context));
