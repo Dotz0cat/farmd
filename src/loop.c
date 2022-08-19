@@ -308,6 +308,22 @@ static DBusHandlerResult dbus_message_filter(DBusConnection* conn, DBusMessage* 
 static DBusHandlerResult dbus_message_handler(DBusConnection* conn, DBusMessage* msg, void* data) {
     //handle here
     loop_context* context = data;
+    int type = dbus_message_get_type(msg);
+
+    switch(type) {
+        case DBUS_MESSAGE_TYPE_METHOD_CALL:
+            dbus_message_get_interface(msg);
+        break;
+        case DBUS_MESSAGE_TYPE_METHOD_RETURN:
+            //stuff
+        break;
+        case DBUS_MESSAGE_TYPE_ERROR:
+            //stuff
+        break;
+        case DBUS_MESSAGE_TYPE_SIGNAL:
+            //stuff
+        break;
+    }
 
     return DBUS_HANDLER_RESULT_HANDLED;
 }
@@ -315,3 +331,7 @@ static DBusHandlerResult dbus_message_handler(DBusConnection* conn, DBusMessage*
 static void dbus_unregister(DBusConnection* conn, void* data) {
     return;
 }
+
+// static DBusHandlerResult dbus_meta_message_handler(DBusConnection* conn, DBusMessage* msg, void* data) {
+
+// }
