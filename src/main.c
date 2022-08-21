@@ -36,6 +36,9 @@ int main(int argc, char** argv) {
     }
 
     //init_daemon();
+    openlog("farmd", LOG_PID, LOG_DAEMON);
+
+    syslog(LOG_NOTICE, "log started");
 
     loop_context* context;
     context = malloc(sizeof(loop_context));

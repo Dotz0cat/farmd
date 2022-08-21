@@ -24,9 +24,22 @@ This file is part of farmd.
 #include <unistd.h>
 #include <signal.h>
 #include <syslog.h>
+#include <string.h>
 
 #include <event2/event.h>
-#include <dbus-1.0/dbus/dbus.h>
+#include <event2/http.h>
+#include <event2/rpc.h>
+#include <event2/buffer.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#include "save.h"
+
+#include "rpc_file.gen.h"
+
+EVRPC_HEADER(BarnQuery, BarnQueryRequest, BarnQueryReply)
+//EVRPC_GENERATE(BarnQuery, BarnQueryRequest, BarnQueryReply)
+EVRPC_HEADER(SiloQuery, SiloQueryRequest, SiloQueryReply)
 
 typedef struct _events_box events_box;
 
@@ -38,7 +51,8 @@ struct _events_box {
     struct event* signal_sighup;
     struct event* signal_sigusr1;
     struct event* signal_sigusr2;
-    struct event* dbus_dispatch;
+    struct evhttp* http_base;
+    struct evrpc_base* rpc_base;
 };
 
 typedef struct _loop_context loop_context;
@@ -48,15 +62,7 @@ struct _loop_context {
 
     events_box* event_box;
 
-    DBusConnection* conn;
-};
-
-typedef struct _watch_list watch_list;
-
-struct _watch_list {
-    DBusWatch* watch;
-
-    loop_context* context;
+    sqlite3* db;
 };
 
 void loop_run(loop_context* context);
@@ -66,23 +72,13 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data);
 static void sigusr1_cb(evutil_socket_t sig, short events, void* user_data);
 static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data);
 
-static dbus_bool_t add_dbus_watch(DBusWatch* watch, void* data);
-static void remove_dbus_watch(DBusWatch* watch, void* data);
-static void toggle_dbus_watch(DBusWatch* watch, void* data);
+static void generic_http_cb(struct evhttp_request* req, void* arg);
 
-static void dbus_watch_cb(int fd, short events, void* user_data);
+static void barn_query_cb(EVRPC_STRUCT(BarnQuery)* rpc, void* arg);
+static void silo_query_cb(EVRPC_STRUCT(SiloQuery)* rpc, void* arg);
 
-static dbus_bool_t add_dbus_timeout(DBusTimeout* timeout, void* data);
-static void remove_dbus_timeout(DBusTimeout* timeout, void* data);
-static void toggle_dbus_timeout(DBusTimeout* timeout, void* data);
+static void logging_cb(int severity, const char *msg);
 
-static void dbus_timeout_cb(int fd, short events, void* user_data);
-
-static void handle_dbus_dispatch_status(DBusConnection* conn, DBusDispatchStatus status, void* data);
-static void handle_dbus_dispatch_cb(int fd, short events, void* user_data);
-
-static DBusHandlerResult dbus_message_filter(DBusConnection* conn, DBusMessage* msg, void* data);
-static DBusHandlerResult dbus_message_handler(DBusConnection* conn, DBusMessage* msg, void* data);
-static void dbus_unregister(DBusConnection* conn, void* data);
+static int rpc_hook_cb(void* thing, struct evhttp_request* request, struct evbuffer* buff, void* data);
 
 #endif /* LOOP_H */
