@@ -34,10 +34,10 @@ int create_save(const char* filename) {
         return 1;
     }
 
-    char* sql = "CREATE TABLE Barn (Item TEXT, Quanity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
-                "CREATE TABLE Silo (Item TEXT, Quanity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
-                "CREATE VIEW BarnCompacity AS SELECT SUM(Quanity) FROM Barn WHERE Status != 'SPECIAL';"
-                "CREATE VIEW SiloCompacity AS SELECT SUM(Quanity) FROM Silo WHERE Status != 'SPECIAL';"
+    char* sql = "CREATE TABLE Barn (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
+                "CREATE TABLE Silo (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
+                "CREATE VIEW BarnCompacity AS SELECT SUM(Quantity) FROM Barn WHERE Status != 'SPECIAL';"
+                "CREATE VIEW SiloCompacity AS SELECT SUM(Quantity) FROM Silo WHERE Status != 'SPECIAL';"
                 "CREATE TABLE BarnMeta (Property TEXT, Value INT);"
                 "CREATE TABLE SiloMeta (Property TEXT, Value INT);"
                 "CREATE TABLE SkillTree (Skill TEXT, Status INT);"
@@ -57,13 +57,13 @@ int create_save(const char* filename) {
     return 0;
 }
 
-int open_save(const char* filename, sqlite3* db) {
+int open_save(const char* filename, sqlite3** db) {
     if (access(filename, F_OK)) {
         //return 1 if not exsits
         return 1;
     }
 
-    int rc = sqlite3_open(filename, &db);
+    int rc = sqlite3_open(filename, db);
 
     if (rc != SQLITE_OK) {
         return 1;
@@ -83,7 +83,7 @@ int barn_query(sqlite3* db, const char* item) {
 
     int quanity;
 
-    char* sql = "SELECT Quanity FROM Barn WHERE Item == ?";
+    char* sql = "SELECT Quantity FROM Barn WHERE Item == ?";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -117,7 +117,7 @@ int silo_query(sqlite3* db, const char* item) {
 
     int quanity;
 
-    char* sql = "SELECT Quanity FROM Silo WHERE Item == ?";
+    char* sql = "SELECT Quantity FROM Silo WHERE Item == ?";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -360,4 +360,262 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item) {
     }
 
     return status;
+}
+
+
+int add_barn_meta_property(sqlite3* db, const char* property, const int key) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "INSERT INTO BarnMeta (Property, Value) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+        sqlite3_bind_int(stmt, 2, key);
+    }
+    else {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "INSERT INTO SiloMeta (Property, Value) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+        sqlite3_bind_int(stmt, 2, key);
+    }
+    else {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int add_meta_property(sqlite3* db, const char* property, const int key) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "INSERT INTO Meta (Property, Value) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+        sqlite3_bind_int(stmt, 2, key);
+    }
+    else {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int get_money(sqlite3* db) {
+    int money;
+
+    sqlite3_stmt* stmt;
+
+    char* sql = "SELECT Value FROM Meta WHERE Property == Money";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    money = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return money;
+}
+
+int get_level(sqlite3* db) {
+    int level;
+
+    sqlite3_stmt* stmt;
+
+    char* sql = "SELECT Value FROM Meta WHERE Property == Level";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    level = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return level;
+}
+
+int get_xp(sqlite3* db) {
+    int xp;
+
+    sqlite3_stmt* stmt;
+
+    char* sql = "SELECT Value FROM Meta WHERE Property == xp";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    xp = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return xp;
+}
+
+int update_xp(sqlite3* db, int added) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Meta SET Value = (SELECT Value FROM Meta WHERE Property == 'xp') + ? WHERE Property == 'xp';";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, added);
+    }
+    else {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int update_money(sqlite3* db, int added) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Meta SET Value = (SELECT Value FROM Meta WHERE Property == 'Money') + ? WHERE Property == 'Money';";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, added);
+    }
+    else {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int level_up(sqlite3* db) {
+     sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Meta SET Value = 0 WHERE Property == xp;"
+                "UPDATE Meta SET Value = (SELECT Value FROM Meta WHERE Property == 'Level') + 1 WHERE Property == 'level';";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
+
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
 }

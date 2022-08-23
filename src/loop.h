@@ -28,18 +28,11 @@ This file is part of farmd.
 
 #include <event2/event.h>
 #include <event2/http.h>
-#include <event2/rpc.h>
 #include <event2/buffer.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
 #include "save.h"
-
-#include "rpc_file.gen.h"
-
-EVRPC_HEADER(BarnQuery, BarnQueryRequest, BarnQueryReply)
-//EVRPC_GENERATE(BarnQuery, BarnQueryRequest, BarnQueryReply)
-EVRPC_HEADER(SiloQuery, SiloQueryRequest, SiloQueryReply)
 
 typedef struct _events_box events_box;
 
@@ -52,7 +45,6 @@ struct _events_box {
     struct event* signal_sigusr1;
     struct event* signal_sigusr2;
     struct evhttp* http_base;
-    struct evrpc_base* rpc_base;
 };
 
 typedef struct _loop_context loop_context;
@@ -74,11 +66,18 @@ static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data);
 
 static void generic_http_cb(struct evhttp_request* req, void* arg);
 
-static void barn_query_cb(EVRPC_STRUCT(BarnQuery)* rpc, void* arg);
-static void silo_query_cb(EVRPC_STRUCT(SiloQuery)* rpc, void* arg);
+static void barn_query_cb(struct evhttp_request* req, void* arg);
+static void silo_query_cb(struct evhttp_request* req, void* arg);
 
-static void logging_cb(int severity, const char *msg);
+static void create_save_cb(struct evhttp_request* req, void* arg);
+static void open_save_cb(struct evhttp_request* req, void* arg);
+static void close_save_cb(struct evhttp_request* req, void* arg);
 
-static int rpc_hook_cb(void* thing, struct evhttp_request* request, struct evbuffer* buff, void* data);
+static void get_barn_allocation_cb(struct evhttp_request* req, void* arg);
+static void get_silo_allocation_cb(struct evhttp_request* req, void* arg);
+
+static void get_money_cb(struct evhttp_request* req, void* arg);
+static void get_level_cb(struct evhttp_request* req, void* arg);
+static void get_xp_cb(struct evhttp_request* req, void* arg);
 
 #endif /* LOOP_H */

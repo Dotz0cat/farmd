@@ -32,7 +32,7 @@ enum item_status {
 };
 
 int create_save(const char* filename);
-int open_save(const char* filename, sqlite3* db);
+int open_save(const char* filename, sqlite3** db);
 void close_save(sqlite3* db);
 
 int barn_query(sqlite3* db, const char* item);
@@ -47,11 +47,25 @@ int get_silo_max(sqlite3* db);
 enum item_status check_barn_item_status(sqlite3* db, const char* item);
 enum item_status check_silo_item_status(sqlite3* db, const char* item);
 
+int add_barn_meta_property(sqlite3* db, const char* property, const int key);
+int add_silo_meta_property(sqlite3* db, const char* property, const int key);
+
+int add_meta_property(sqlite3* db, const char* property, const int key);
+
+int get_money(sqlite3* db);
+int get_level(sqlite3* db);
+int get_xp(sqlite3* db);
+
+int update_xp(sqlite3* db, int added);
+int update_money(sqlite3* db, int added);
+
+int level_up(sqlite3* db);
+
 #endif /* SAVE_H */
 
 /*
-CREATE TABLE Barn (Item TEXT, Quanity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
-CREATE TABLE Silo (Item TEXT, Quanity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
+CREATE TABLE Barn (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
+CREATE TABLE Silo (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
                     
     CREATE VIEW BarnCompacity AS
     SELECT SUM(Quanity) FROM Barn
