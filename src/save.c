@@ -25,28 +25,27 @@ int create_save(const char* filename) {
     int rc = sqlite3_open(filename, &db);
 
     if (rc != SQLITE_OK) {
-        //will likely put in syslog
-        //fprintf(stderr, "SQLite3 error: %s\r\n", sqlite3_errmsg(db));
-        //fprintf(stderr, "SQLITE3 error info: %i\r\n", sqlite3_system_errno(db));
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
 
         sqlite3_close(db);
 
         return 1;
     }
 
-    char* sql = "CREATE TABLE Barn (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
-                "CREATE TABLE Silo (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
+    char* sql = "CREATE TABLE Barn (Item TEXT UNIQUE, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
+                "CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
                 "CREATE VIEW BarnCompacity AS SELECT SUM(Quantity) FROM Barn WHERE Status != 'SPECIAL';"
                 "CREATE VIEW SiloCompacity AS SELECT SUM(Quantity) FROM Silo WHERE Status != 'SPECIAL';"
-                "CREATE TABLE BarnMeta (Property TEXT, Value INT);"
-                "CREATE TABLE SiloMeta (Property TEXT, Value INT);"
-                "CREATE TABLE SkillTree (Skill TEXT, Status INT);"
+                "CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT);"
+                "CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT);"
+                "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);"
                 "CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);"
-                "CREATE TABLE Meta (Property TEXT, Value INT);";
+                "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);";
 
     rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_close(db);
 
         return 1;
@@ -66,6 +65,7 @@ int open_save(const char* filename, sqlite3** db) {
     int rc = sqlite3_open(filename, db);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(*db));
         return 1;
     }
     else {
@@ -91,7 +91,7 @@ int barn_query(sqlite3* db, const char* item) {
         sqlite3_bind_text(stmt, 1, item, -1, NULL);
     }
     else {
-
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -101,6 +101,8 @@ int barn_query(sqlite3* db, const char* item) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -125,7 +127,7 @@ int silo_query(sqlite3* db, const char* item) {
         sqlite3_bind_text(stmt, 1, item, -1, NULL);
     }
     else {
-
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -135,6 +137,8 @@ int silo_query(sqlite3* db, const char* item) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -156,6 +160,7 @@ int get_barn_allocation(sqlite3* db) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -165,6 +170,8 @@ int get_barn_allocation(sqlite3* db) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -186,6 +193,7 @@ int get_silo_allocation(sqlite3* db) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -195,6 +203,8 @@ int get_silo_allocation(sqlite3* db) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -216,6 +226,7 @@ int get_barn_max(sqlite3* db) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -225,6 +236,8 @@ int get_barn_max(sqlite3* db) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -246,6 +259,7 @@ int get_silo_max(sqlite3* db) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -255,6 +269,8 @@ int get_silo_max(sqlite3* db) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -280,7 +296,7 @@ enum item_status check_barn_item_status(sqlite3* db, const char* item) {
         sqlite3_bind_text(stmt, 1, item, -1, NULL);
     }
     else {
-
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -290,6 +306,8 @@ enum item_status check_barn_item_status(sqlite3* db, const char* item) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -328,7 +346,7 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item) {
         sqlite3_bind_text(stmt, 1, item, -1, NULL);
     }
     else {
-
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -338,6 +356,8 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item) {
 
     if (rc != SQLITE_OK) {
         if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
             return -1;
         }
     }
@@ -366,7 +386,7 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item) {
 int add_barn_meta_property(sqlite3* db, const char* property, const int key) {
     sqlite3_stmt* stmt;
 
-    char* sql = "INSERT INTO BarnMeta (Property, Value) VALUES (?, ?);";
+    char* sql = "INSERT OR IGNORE INTO BarnMeta (Property, Value) VALUES (?, ?);";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -375,6 +395,7 @@ int add_barn_meta_property(sqlite3* db, const char* property, const int key) {
         sqlite3_bind_int(stmt, 2, key);
     }
     else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -383,6 +404,7 @@ int add_barn_meta_property(sqlite3* db, const char* property, const int key) {
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -396,7 +418,7 @@ int add_barn_meta_property(sqlite3* db, const char* property, const int key) {
 int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
     sqlite3_stmt* stmt;
 
-    char* sql = "INSERT INTO SiloMeta (Property, Value) VALUES (?, ?);";
+    char* sql = "INSERT OR IGNORE INTO SiloMeta (Property, Value) VALUES (?, ?);";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -405,6 +427,7 @@ int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
         sqlite3_bind_int(stmt, 2, key);
     }
     else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -413,6 +436,7 @@ int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         
         return -1;
@@ -426,7 +450,7 @@ int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
 int add_meta_property(sqlite3* db, const char* property, const int key) {
     sqlite3_stmt* stmt;
 
-    char* sql = "INSERT INTO Meta (Property, Value) VALUES (?, ?);";
+    char* sql = "INSERT OR IGNORE INTO Meta (Property, Value) VALUES (?, ?);";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -435,6 +459,7 @@ int add_meta_property(sqlite3* db, const char* property, const int key) {
         sqlite3_bind_int(stmt, 2, key);
     }
     else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -443,6 +468,7 @@ int add_meta_property(sqlite3* db, const char* property, const int key) {
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         
         return -1;
@@ -458,11 +484,12 @@ int get_money(sqlite3* db) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Value FROM Meta WHERE Property == Money";
+    char* sql = "SELECT Value FROM Meta WHERE Property == 'Money';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -470,9 +497,11 @@ int get_money(sqlite3* db) {
 
     rc = sqlite3_step(stmt);
 
-    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-        sqlite3_finalize(stmt);
-        return -1;
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            return -1;
+        }
     }
 
     money = sqlite3_column_int(stmt, 0);
@@ -487,11 +516,12 @@ int get_level(sqlite3* db) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Value FROM Meta WHERE Property == Level";
+    char* sql = "SELECT Value FROM Meta WHERE Property == 'Level';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -499,9 +529,12 @@ int get_level(sqlite3* db) {
 
     rc = sqlite3_step(stmt);
 
-    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-        sqlite3_finalize(stmt);
-        return -1;
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
     }
 
     level = sqlite3_column_int(stmt, 0);
@@ -516,11 +549,12 @@ int get_xp(sqlite3* db) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Value FROM Meta WHERE Property == xp";
+    char* sql = "SELECT Value FROM Meta WHERE Property == 'xp';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -528,9 +562,12 @@ int get_xp(sqlite3* db) {
 
     rc = sqlite3_step(stmt);
 
-    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-        sqlite3_finalize(stmt);
-        return -1;
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
     }
 
     xp = sqlite3_column_int(stmt, 0);
@@ -540,17 +577,19 @@ int get_xp(sqlite3* db) {
     return xp;
 }
 
-int update_xp(sqlite3* db, int added) {
+int update_meta(sqlite3* db, const int added, const char* property) {
     sqlite3_stmt* stmt;
 
-    char* sql = "UPDATE Meta SET Value = (SELECT Value FROM Meta WHERE Property == 'xp') + ? WHERE Property == 'xp';";
+    char* sql = "UPDATE Meta SET Value = Value + ? WHERE Property == '?';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc == SQLITE_OK) {
         sqlite3_bind_int(stmt, 1, added);
+        sqlite3_bind_text(stmt, 2, property, -1, NULL);
     }
     else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -559,33 +598,9 @@ int update_xp(sqlite3* db, int added) {
     rc = sqlite3_step(stmt);
 
     if (rc != SQLITE_OK && rc != SQLITE_DONE) {
-        return -1;
-    }
-
-    sqlite3_finalize(stmt);
-
-    return 0;
-}
-
-int update_money(sqlite3* db, int added) {
-    sqlite3_stmt* stmt;
-
-    char* sql = "UPDATE Meta SET Value = (SELECT Value FROM Meta WHERE Property == 'Money') + ? WHERE Property == 'Money';";
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
-
-    if (rc == SQLITE_OK) {
-        sqlite3_bind_int(stmt, 1, added);
-    }
-    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
-
-        return -1;
-    }
-
-    rc = sqlite3_step(stmt);
-
-    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
         return -1;
     }
 
@@ -603,6 +618,7 @@ int level_up(sqlite3* db) {
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
 
         return -1;
@@ -611,6 +627,7 @@ int level_up(sqlite3* db) {
     rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
 
     if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
         return -1;
     }

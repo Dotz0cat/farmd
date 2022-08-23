@@ -22,6 +22,7 @@ This file is part of farmd.
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <syslog.h>
 
 #include <sqlite3.h>
 
@@ -56,8 +57,7 @@ int get_money(sqlite3* db);
 int get_level(sqlite3* db);
 int get_xp(sqlite3* db);
 
-int update_xp(sqlite3* db, int added);
-int update_money(sqlite3* db, int added);
+int update_meta(sqlite3* db, const int added, const char* property);
 
 int level_up(sqlite3* db);
 
