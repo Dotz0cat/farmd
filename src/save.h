@@ -56,16 +56,30 @@ int add_meta_property(sqlite3* db, const char* property, const int key);
 int get_money(sqlite3* db);
 int get_level(sqlite3* db);
 int get_xp(sqlite3* db);
+int get_number_of_fields(sqlite3* db);
+int get_number_of_tree_plots(sqlite3* db);
+int get_skill_points(sqlite3* db);
 
 int update_meta(sqlite3* db, const int added, const char* property);
 
-int level_up(sqlite3* db);
+int level_up(sqlite3* db, const int xp_needed);
+
+int add_to_skill_tree(sqlite3* db, const char* skill, const int status);
+int update_skill_tree(sqlite3* db, const char* skill);
+int get_skill_status(sqlite3* db, const char* skill);
+
+int update_barn(sqlite3* db, const char* item, const int changed);
+int update_silo(sqlite3* db, const char* item, const int changed);
+int update_barn_status(sqlite3* db, const char* item, const enum item_status status);
+int update_silo_status(sqlite3* db, const char* item, const enum item_status status);
+int add_item_to_barn(sqlite3* db, const char* item, const enum item_status status);
+int add_item_to_silo(sqlite3* db, const char* item, const enum item_status status);
 
 #endif /* SAVE_H */
 
 /*
-CREATE TABLE Barn (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
-CREATE TABLE Silo (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
+CREATE TABLE Barn (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
+CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
                     
     CREATE VIEW BarnCompacity AS
     SELECT SUM(Quanity) FROM Barn
@@ -75,12 +89,12 @@ CREATE TABLE Silo (Item TEXT, Quantity INT, Status TEXT CHECK(Status IN ('UNLOCK
     SELECT SUM(Quanity) FROM Silo
     WHERE Status != 'SPECIAL';
     
-CREATE TABLE BarnMeta (Property TEXT, Value INT);
-CREATE TABLE SiloMeta (Property TEXT, Value INT);
+CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT);
+CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT);
 
-CREATE TABLE SkillTree (Skill TEXT, Status INT);
+CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);
 
 CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);
 
-CREATE TABLE Meta (Property TEXT, Value INT);
+CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);
 */

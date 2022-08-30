@@ -25,6 +25,7 @@ This file is part of farmd.
 #include <signal.h>
 #include <syslog.h>
 #include <string.h>
+#include <math.h>
 
 #include <event2/event.h>
 #include <event2/http.h>
@@ -33,6 +34,8 @@ This file is part of farmd.
 #include <sys/un.h>
 
 #include "save.h"
+#include "list.h"
+#include "inital_values.h"
 
 typedef struct _events_box events_box;
 
@@ -55,6 +58,8 @@ struct _loop_context {
     events_box* event_box;
 
     sqlite3* db;
+
+    fields_list* field_list;
 };
 
 void loop_run(loop_context* context);
@@ -79,5 +84,15 @@ static void get_silo_allocation_cb(struct evhttp_request* req, void* arg);
 static void get_money_cb(struct evhttp_request* req, void* arg);
 static void get_level_cb(struct evhttp_request* req, void* arg);
 static void get_xp_cb(struct evhttp_request* req, void* arg);
+
+static void fields_cb(struct evhttp_request* req, void* arg);
+static void fields_harvest_cb(struct evhttp_request* req, void* arg);
+static void plant_cb(struct evhttp_request* req, void* arg);
+static void field_ready_cb(evutil_socket_t fd, short events, void* user_data);
+
+static void xp_check(sqlite3* db);
+
+static void buy_field_cb(struct evhttp_request* req, void* arg);
+static void buy_tree_plot_cb(struct evhttp_request* req, void* arg);
 
 #endif /* LOOP_H */
