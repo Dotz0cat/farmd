@@ -6,20 +6,24 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 ## steps for alpha
 
-* plant and harvest work correctly
+* plant and harvest work correctly - []
 
-* start fleshing out trees
+* start fleshing out trees - []
 
-* framework built for small processing
+* framework built for small processing - []
 
-* config working correctly
+* config working correctly - []
 
-* skill tree started well
+* skill tree started well - [x]
 
-* buy and sell working
+* buy and sell working - []
 
-* skill points added
+* skill points added - [x]
 
-* post arguments taken correctly
+* post arguments taken correctly - [x]
 
-* find a standard to document api and api quirks
+* find a standard to document api and api quirks -[]
+
+* memory cleaned up -[]
+
+* https added - []

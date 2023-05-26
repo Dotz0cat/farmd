@@ -176,7 +176,7 @@ int add_inital_save_values(sqlite3* db) {
     }
 
     //dairy product types
-    rc = add_to_skill_tree(db, "pasterized", 0);
+    rc = add_to_skill_tree(db, "pasteurized", 0);
     if (rc != 0) {
         return -1;
     }
@@ -249,4 +249,159 @@ int add_inital_save_values(sqlite3* db) {
     }
 
     return 0;
+}
+
+const char* skill_dep_check(sqlite3* db, const char* skill) {
+    switch (hash(skill)) {
+        //Fields
+        case (753281362039030180ul):
+        //wheat
+        case (7449900282074400153ul):
+        //corn
+        case (9054106518560669730ul):
+        //potatos
+        case (7877483822930927482ul):
+        //beets
+        case (6159784693414617594ul):
+        //sugarcane
+        case (9644926710613211612ul):
+        //turnips
+        case (7259940842335963470ul):
+        //tomatos
+        case (11580180853258389223ul):
+        //cucumbers
+        case (1675513966417282617ul):
+        //okra
+        case (6301598470836844819ul):
+        //TreePlots
+        case (8178761559116963079ul):
+        //pears
+        case (5396648308222667934ul):
+        //apples
+        case (18333818697599901006ul):
+        //oranges
+        case (10410096555382471531ul):
+        //peaches
+        case (6920670729481494599ul):
+            //Farming branch
+            if (get_skill_status(db, "Farming") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: Farming";
+            }
+        break;
+        //nop till populated
+        case (1185095156092737501ul):
+            //lLivestock branch
+            if (get_skill_status(db, "LiveStock") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: LiveStock";
+            }
+        break;
+        //pasteurized
+        case (8415674580895657090ul):
+        //butter
+        case (17300743435645978621ul):
+        //cheese
+        case (7423936227120320490ul):
+            //dairy processing branch
+            if (get_skill_status(db, "Dairy") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: Dairy";
+            }
+        break;
+        //cowFeed
+        case (647418952940708253ul):
+        //chickenFeed
+        case (3268618862269003574ul):
+            //feed mill processing branch
+            if (get_skill_status(db, "FeedMill") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: FeedMill";
+            }
+        break;
+        //GrainMill
+        case (9636537473772185022ul):
+        //SugarMill
+        case (15740060735858632559ul):
+            //milling processing branch
+            if (get_skill_status(db, "Milling") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: Milling";
+            }
+        break;
+        //wheatFlour
+        case (9929805013120973397ul):
+        //cornMeal
+        case (17229215621694050128ul):
+            //grain mill processing branch
+            if (get_skill_status(db, "GrainMill") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: GrainMill";
+            }
+        break;
+        //caneSugar
+        case (5979901262968083966ul):
+        //beetSugar
+        case (18148427013753227637ul):
+            //sugar mill processing branch
+            if (get_skill_status(db, "SugarMill") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: SugarMill";
+            }
+        break;
+        //Dairy
+        case (504030753684137974ul):
+        //FeedMill
+        case (18062285989211648686ul):
+        //Milling
+        case (2988354002298813950ul):
+            //processing branch
+            if (get_skill_status(db, "Processing") != 0) {
+                return NULL;
+            }
+            else {
+                return "Dependancy needed: Processing";
+            }
+        break;
+        //Farming
+        case (11735882624484804429ul):
+        //LiveStock
+        case (8725773883252304405ul):
+        //Processing
+        case (3966044600816150607ul):
+            return NULL;
+        break;
+        default:
+            //nop
+            return "Not found";
+        break;
+    }
+}
+
+static inline uint64_t hash(const char* key) {
+    //see https://stackoverflow.com/a/57960443/14062392
+
+    uint64_t h = 525201411107845655ull;
+
+    for (;*key; key++) {
+        h ^= *key;
+        h *= 0x5bd1e9955bd1e995;
+        h ^= h >> 47;
+    }
+    
+    return h;
 }

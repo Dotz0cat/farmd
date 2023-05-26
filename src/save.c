@@ -40,7 +40,8 @@ int create_save(const char* filename) {
                 "CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT);"
                 "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);"
                 "CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);"
-                "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);";
+                "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);"
+                "CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);";
 
     rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
 
@@ -1049,4 +1050,139 @@ int add_item_to_silo(sqlite3* db, const char* item, const enum item_status statu
     sqlite3_finalize(stmt);
 
     return 0;
+}
+
+int add_tree(sqlite3* db, const int index) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "INSERT OR IGNORE INTO Trees (TreeIndex, Type) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, index);
+        sqlite3_bind_text(stmt, 2, "none", -1, NULL);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int remove_tree(sqlite3* db, const int index) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Trees SET Type = 'none' WHERE TreeIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int set_tree_type(sqlite3* db, const int index, const char* type) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Trees SET Type = ? WHERE TreeIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, type, -1, NULL);
+        sqlite3_bind_int(stmt, 2, index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+const char* get_tree_type(sqlite3* db, const int tree_number) {
+    sqlite3_stmt* stmt;
+
+    const unsigned char* tree_type = NULL;
+    const char* type = NULL;
+
+    char* sql = "SELECT Type FROM Trees WHERE TreeIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, tree_number);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return NULL;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    tree_type = sqlite3_column_text(stmt, 0);
+
+    type = strdup( (const char*) tree_type);
+
+    sqlite3_finalize(stmt);
+
+    //sqlite3_snprintf(int, char *, const char *, ...)
+
+    //return (const char*) tree_type;
+    return type;
 }

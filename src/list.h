@@ -68,7 +68,6 @@ struct _fields_list {
 
     int completion;
 
-    //may not be used.
     void* event;
 
     void* next;
@@ -83,7 +82,6 @@ struct _trees_list {
 
     int completion;
 
-    //may not be used.
     void* event;
 
     void* next;
@@ -92,12 +90,21 @@ struct _trees_list {
 //TODO animals. (a tad bit more complicated)
 
 static fields_list* add_field_to_list(fields_list* prev, int field_number);
-fields_list* make_fields_list(int number_of_fields);
-fields_list* wind_to_tail(fields_list* list);
+fields_list* make_fields_list(const int number_of_fields);
+static fields_list* wind_fields_to_tail(fields_list* list);
 int amend_fields_list(fields_list* head, int new_number);
 int get_number_of_fields_list(fields_list* head);
-void set_event_pointer(fields_list* list, void* event);
+void set_field_event_pointer(fields_list* list, void* event);
 const char* field_crop_enum_to_string(enum field_crop type);
 enum field_crop field_crop_string_to_enum(const char* type);
+
+static trees_list* add_tree_to_list(trees_list* prev, int tree_number);
+trees_list* make_trees_list(const int number_of_trees);
+static trees_list* wind_trees_to_tail(trees_list* head);
+int amend_trees_list(trees_list* head, const int new_number);
+int get_number_of_trees_list(trees_list* head);
+void set_trees_event_pointer(trees_list* node, void* event);
+const char* tree_crop_enum_to_string(enum tree_crop type);
+enum tree_crop tree_crop_string_to_enum(const char* type);
 
 #endif /* LIST_H */

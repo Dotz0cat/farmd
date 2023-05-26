@@ -66,7 +66,7 @@ static fields_list* add_field_to_list(fields_list* prev, int field_number) {
     }
 }
 
-fields_list* make_fields_list(int number_of_fields) {
+fields_list* make_fields_list(const int number_of_fields) {
     if (number_of_fields == 0) {
         return NULL;
     }
@@ -75,14 +75,16 @@ fields_list* make_fields_list(int number_of_fields) {
     list = add_field_to_list(list, 0);
     int i = 1;
 
+    fields_list* add_head = list;
+
     for (; i < number_of_fields; i++) {
-        add_field_to_list(list, i);
+        add_head = add_field_to_list(add_head, i);
     }
 
     return list;
 }
 
-fields_list* wind_to_tail(fields_list* list) {
+static fields_list* wind_fields_to_tail(fields_list* list) {
     while (list->next != NULL) {
         list = list->next;
     }
@@ -99,7 +101,7 @@ int amend_fields_list(fields_list* head, int new_number) {
     }
     fields_list* list = head;
 
-    list = wind_to_tail(list);
+    list = wind_fields_to_tail(list);
 
     for (int i = old_number - 1; i < new_number; i++) {
         add_field_to_list(list, i);
@@ -113,12 +115,13 @@ int get_number_of_fields_list(fields_list* head) {
     fields_list* count_head = head;
     do {
         number_of_fields++;
-    } while(count_head->next != NULL);
+        count_head = count_head->next;
+    } while(count_head != NULL);
 
     return number_of_fields;
 }
 
-void set_event_pointer(fields_list* list, void* event) {
+void set_field_event_pointer(fields_list* list, void* event) {
     list->event = event;
 } 
 
@@ -127,11 +130,119 @@ const char* field_crop_enum_to_string(enum field_crop type) {
 }
 
 enum field_crop field_crop_string_to_enum(const char* type) {
-    for (int i = 0; i < sizeof(field_crop_strings); i++) {
+    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
         if (strcmp(type, field_crop_strings[i]) == 0) {
             return i;
         }
     }
 
     return NONE_FIELD;
+}
+
+static trees_list* add_tree_to_list(trees_list* prev, int tree_number) {
+    if (prev == NULL) {
+        trees_list* new = malloc(sizeof(trees_list));
+
+        new->type = NONE_TREE;
+
+        new->next = NULL;
+
+        new->event = NULL;
+
+        new->tree_number = tree_number;
+
+        return new;
+    }
+    else {
+        trees_list* new = malloc(sizeof(trees_list));
+
+        new->type = NONE_TREE;
+
+        new->next = NULL;
+
+        new->event = NULL;
+
+        new->tree_number = tree_number;
+
+        prev->next = new;
+
+        return new;
+    }
+}
+
+trees_list* make_trees_list(const int number_of_trees) {
+    if (number_of_trees == 0) {
+        return NULL;
+    }
+
+    trees_list* list = NULL;
+
+    list = add_tree_to_list(list, 0);
+    int i = 1;
+
+    trees_list* add_head = list;
+
+    for (; i < number_of_trees; i++) {
+        add_head = add_tree_to_list(add_head, i);
+    }
+
+    return list;
+}
+
+static trees_list* wind_trees_to_tail(trees_list* head) {
+    trees_list* list = head;
+
+    while (list->next != NULL) {
+        list = list->next;
+    }
+
+    return list;
+}
+
+int amend_trees_list(trees_list* head, const int new_number) {
+    int old_number = get_number_of_trees_list(head);
+
+    if (new_number <= old_number) {
+        return -1;
+    }
+
+    trees_list* list = head;
+
+    list = wind_trees_to_tail(list);
+
+    for (int i = old_number - 1; i < new_number; i++) {
+        list = add_tree_to_list(list, i);
+    }
+
+    return 0;
+}
+
+int get_number_of_trees_list(trees_list* head) {
+    int count = 0;
+    trees_list* count_head = head;
+
+    do {
+        count++;
+        count_head = count_head->next;
+    } while(count_head != NULL);
+
+    return count;
+}
+
+void set_trees_event_pointer(trees_list* node, void* event) {
+    node->event = event;
+}
+
+const char* tree_crop_enum_to_string(enum tree_crop type) {
+    return tree_crop_strings[type];
+}
+
+enum tree_crop tree_crop_string_to_enum(const char* type) {
+    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+        if (strcmp(type, tree_crop_strings[i]) == 0) {
+            return i;
+        }
+    }
+
+    return NONE_TREE;
 }

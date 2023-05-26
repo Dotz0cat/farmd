@@ -21,8 +21,11 @@ This file is part of farmd.
 #define INITAL_VALUES_H
 
 #include <stdlib.h>
+#include <stdint.h>
 #include "save.h"
 
 int add_inital_save_values(sqlite3* db);
+const char* skill_dep_check(sqlite3* db, const char* skill);
+static inline uint64_t hash(const char* key);
 
 #endif /* INITAL_VALUES_H */

@@ -23,6 +23,7 @@ This file is part of farmd.
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <string.h>
 
 #include <sqlite3.h>
 
@@ -75,6 +76,11 @@ int update_silo_status(sqlite3* db, const char* item, const enum item_status sta
 int add_item_to_barn(sqlite3* db, const char* item, const enum item_status status);
 int add_item_to_silo(sqlite3* db, const char* item, const enum item_status status);
 
+int add_tree(sqlite3* db, const int index);
+int remove_tree(sqlite3* db, const int index);
+int set_tree_type(sqlite3* db, const int index, const char* type);
+const char* get_tree_type(sqlite3* db, const int tree_number);
+
 #endif /* SAVE_H */
 
 /*
@@ -97,4 +103,6 @@ CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);
 CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);
 
 CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);
+
+CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);
 */
