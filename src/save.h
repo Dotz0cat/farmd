@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -33,8 +33,8 @@ enum item_status {
     SPECIAL
 };
 
-int create_save(const char* filename);
-int open_save(const char* filename, sqlite3** db);
+int create_save_db(const char* filename);
+int open_save_db(const char* filename, sqlite3** db);
 void close_save(sqlite3* db);
 
 int barn_query(sqlite3* db, const char* item);

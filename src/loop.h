@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -36,6 +36,7 @@ This file is part of farmd.
 #include "save.h"
 #include "list.h"
 #include "inital_values.h"
+#include "config.h"
 
 typedef struct _events_box events_box;
 
@@ -53,7 +54,7 @@ struct _events_box {
 typedef struct _loop_context loop_context;
 
 struct _loop_context {
-    int number;
+    pre_init_stuff* pre_init_info;
 
     events_box* event_box;
 
@@ -80,6 +81,9 @@ static void create_save_cb(struct evhttp_request* req, void* arg);
 static void open_save_cb(struct evhttp_request* req, void* arg);
 static void close_save_cb(struct evhttp_request* req, void* arg);
 
+static int open_save(const char* file_name, loop_context* context);
+static int create_save(const char* file_name, loop_context* context);
+
 static void get_barn_allocation_cb(struct evhttp_request* req, void* arg);
 static void get_silo_allocation_cb(struct evhttp_request* req, void* arg);
 
@@ -104,5 +108,6 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg);
 
 static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_data);
 static void tree_harvest_cb(struct evhttp_request* req, void* arg);
+static void tree_status_cb(struct evhttp_request* req, void* arg);
 
 #endif /* LOOP_H */

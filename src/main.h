@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -27,9 +27,13 @@ This file is part of farmd.
 #include <sys/stat.h>
 #include <signal.h>
 #include <syslog.h>
+#include <string.h>
+#include <pwd.h>
 
 #include "loop.h"
+#include "config.h"
 
 static void init_daemon();
+static pre_init_stuff* pre_init(char* config, char* save);
 
 #endif /* MAIN_H */

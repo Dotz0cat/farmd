@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -47,6 +47,7 @@ void loop_run(loop_context* context) {
 
     context->db = NULL;
     context->tree_list = NULL;
+    context->field_list = NULL;
 
     //set up basic signals
     context->event_box->signal_sigquit = evsignal_new(context->event_box->base, SIGQUIT, sig_int_quit_term_cb, (void*) context);
@@ -86,7 +87,7 @@ void loop_run(loop_context* context) {
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = 0;
     //get port set in config
-    sin.sin_port = htons(8080);
+    sin.sin_port = htons(context->pre_init_info->settings->port);
     if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
         syslog(LOG_WARNING, "failed to bind socket");
         abort();
@@ -219,6 +220,24 @@ void loop_run(loop_context* context) {
     if (evhttp_set_cb(context->event_box->http_base, "/tree/harvest", tree_harvest_cb, context)) {
         syslog(LOG_WARNING, "failed to set /tree/harvest");
         abort();
+    }
+
+    if (evhttp_set_cb(context->event_box->http_base, "/tree/status", tree_status_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /tree/status");
+        abort();
+    }
+
+    if (context->pre_init_info->save != NULL) {
+        if (open_save(context->pre_init_info->save, context) != 0) {
+            syslog(LOG_WARNING, "error opening save at %s", context->pre_init_info->save);
+            abort();
+        }
+    }
+    else if (context->pre_init_info->settings->save_location != NULL) {
+        if (open_save(context->pre_init_info->settings->save_location, context) != 0) {
+            syslog(LOG_WARNING, "error opening save at %s", context->pre_init_info->settings->save_location);
+            abort();
+        }
     }
 
 
@@ -383,44 +402,42 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
         file_name = filename;
     }
 
-    int rc = create_save(file_name);
-    if (rc != 0) {
-        if (filename != NULL) {
-            free(filename);
+    int rc = create_save(file_name, context);
+    switch (rc) {
+        case (1): {
+            if (filename != NULL) {
+                free(filename);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to create new save at %s\r\n", file_name);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+            break;
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "failed to create new save at %s\r\n", file_name);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    rc = open_save(file_name, &context->db);
-    if (rc != 0) {
-        if (filename != NULL) {
-            free(filename);
+        case (2): {
+            if (filename != NULL) {
+                free(filename);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to open new save at %s for inital settings\r\n", file_name);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+            break;
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "failed to open new save at %s for inital settings\r\n", file_name);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    rc = add_inital_save_values(context->db);
-    if (rc != 0) {
-        if (filename != NULL) {
-            free(filename);
+        case (3): {
+            if (filename != NULL) {
+                free(filename);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to add inital settings\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+            break;
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "failed to add inital settings\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
     }
-
-    close_save(context->db);
-    context->db = NULL;
 
     if (filename != NULL) {
         free(filename);
@@ -482,7 +499,7 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
         file_name = filename;
     }
 
-    int rc = open_save(file_name, &context->db);
+    int rc = open_save(file_name, context);
     if (rc != 0) {
         if (filename != NULL) {
             free(filename);
@@ -493,23 +510,6 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
         evbuffer_free(returnbuffer);
         return;
     }
-
-    //make fields list here
-    context->field_list = make_fields_list(get_number_of_fields(context->db));
-
-    context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
-
-    //populate trees
-    int trees = get_number_of_tree_plots(context->db);
-    if (trees > 0) {
-        trees_list* list = context->tree_list;
-        for (int i = 0; i < trees; i++) {
-            const char* tree_type = get_tree_type(context->db, i);
-            list->type = tree_crop_string_to_enum(tree_type);
-            free((char*) tree_type);
-            list = list->next;
-        }
-    } 
 
     if (filename != NULL) {
         free(filename);
@@ -544,6 +544,54 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
     evbuffer_add_printf(returnbuffer, "save closed\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
+}
+
+static int open_save(const char* file_name, loop_context* context) {
+    int rc = open_save_db(file_name, &context->db);
+    if (rc != 0) {
+        return rc;
+    }
+
+    //make fields list here
+    context->field_list = make_fields_list(get_number_of_fields(context->db));
+
+    context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
+
+    //populate trees
+    int trees = get_number_of_tree_plots(context->db);
+    if (trees > 0) {
+        trees_list* list = context->tree_list;
+        for (int i = 0; i < trees; i++) {
+            const char* tree_type = get_tree_type(context->db, i);
+            list->type = tree_crop_string_to_enum(tree_type);
+            free((char*) tree_type);
+            list = list->next;
+        }
+    }
+
+    return 0;
+}
+
+static int create_save(const char* file_name, loop_context* context) {
+    int rc = create_save_db(file_name);
+    if (rc != 0) {
+        return 1;
+    }
+
+    rc = open_save(file_name, context);
+    if (rc != 0) {
+        return 2;
+    }
+
+    rc = add_inital_save_values(context->db);
+    if (rc != 0) {
+        return 3;
+    }
+
+    close_save(context->db);
+    context->db = NULL;
+
+    return 0;
 }
 
 static void get_barn_allocation_cb(struct evhttp_request* req, void* arg) {
@@ -1623,4 +1671,56 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     } while (list != NULL);
 
     evhttp_send_reply(req, HTTP_OK, "Client", NULL);
+}
+
+static void tree_status_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    if (get_number_of_tree_plots(context->db) == 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    if (context->tree_list == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no trees\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    trees_list* list = context->tree_list;
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+
+    //check for races
+    do {
+        char* complete;
+        if (list->completion == 1) {
+            complete = "ready";
+        }
+        else {
+            complete = "not ready";
+        }
+        evbuffer_add_printf(returnbuffer, "tree%d: %s %s\r\n", list->tree_number, tree_crop_enum_to_string(list->type), complete);
+        list = list->next;
+    } while (list != NULL);
+
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
 }

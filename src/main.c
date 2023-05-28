@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -23,26 +23,36 @@ int main(int argc, char** argv) {
 
     int opt = 0;
 
-    while((opt = getopt(argc, argv, "v")) != -1) {
+    char* config = NULL;
+    char* save = NULL;
+
+    while((opt = getopt(argc, argv, "vc:s:")) != -1) {
         switch(opt) {
             case 'v':
                 printf("%s version: %s\r\n", argv[0], VERSION);
                 return EXIT_SUCCESS;
                 break;
+            case 'c':
+                config = strdup(optarg);
+                break;
+            case 's':
+                save = strdup(optarg);
+                break;
             default: /* ? */
-                fprintf(stderr, "Usage: %s [-v]\r\n", argv[0]);
+                fprintf(stderr, "Usage: %s [-v] [-c config] [-s save]\r\n", argv[0]);
                 return EXIT_FAILURE;
         }
     }
+
+    loop_context* context;
+    context = malloc(sizeof(loop_context));
+
+    context->pre_init_info = pre_init(config, save);
 
     //init_daemon();
     openlog("farmd", LOG_PID, LOG_DAEMON);
 
     syslog(LOG_NOTICE, "log started");
-
-    loop_context* context;
-    context = malloc(sizeof(loop_context));
-    context->number = 4;
 
     loop_run(context);
 
@@ -95,4 +105,70 @@ static void init_daemon() {
     fclose(stderr);
 
     openlog("farmd", LOG_PID, LOG_DAEMON);
+}
+
+static pre_init_stuff* pre_init(char* config, char* save) {
+    pre_init_stuff* info = malloc(sizeof(pre_init_stuff));
+
+    char* home = getenv("HOME");
+
+    if (home == NULL) {
+        uid_t uid = getuid();
+        struct passwd* pw = getpwuid(uid);
+        home = pw->pw_dir;
+    }
+
+    info->home = strdup(home);
+
+    char* xdg_config_home = getenv("XDG_CONFIG_HOME");
+
+    if (xdg_config_home != NULL) {
+        info->xdg_config_home = strdup(xdg_config_home);
+    }
+    else {
+        info->xdg_config_home = NULL;
+    }
+    
+
+    if (config != NULL) {
+        info->config = config;
+    }
+    else {
+        if (info->xdg_config_home != NULL && strcmp(info->xdg_config_home, "") != 0) {
+            int count = snprintf(NULL, 0, "%s%s", info->xdg_config_home, "/farmd/config");
+            if (count <= 0) {
+                abort();
+            }
+
+            info->config = malloc(count + 1U);
+
+            if (info->config == NULL) {
+                abort();
+            }
+
+            snprintf(info->config, count + 1U, "%s%s", info->xdg_config_home, "/farmd/config");
+        }
+        else {
+            int count = snprintf(NULL, 0, "%s%s", info->home, "/.config/farmd/config");
+            if (count <= 0) {
+                abort();
+            }
+
+            info->config = malloc(count + 1U);
+
+            if (info->config == NULL) {
+                abort();
+            }
+
+            snprintf(info->config, count + 1U, "%s%s", home, "/.config/farmd/config");
+        }
+    }
+
+    if (save != NULL) {
+        info->save = save;
+    }
+
+    info->settings = config_parse(info->config, info->home, info->xdg_config_home);
+
+    return info;
 }

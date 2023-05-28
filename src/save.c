@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -19,7 +19,7 @@ This file is part of farmd.
 
 #include "save.h"
 
-int create_save(const char* filename) {
+int create_save_db(const char* filename) {
     sqlite3* db;
 
     int rc = sqlite3_open(filename, &db);
@@ -57,7 +57,7 @@ int create_save(const char* filename) {
     return 0;
 }
 
-int open_save(const char* filename, sqlite3** db) {
+int open_save_db(const char* filename, sqlite3** db) {
     if (access(filename, F_OK)) {
         //return 1 if not exsits
         return 1;

@@ -6,27 +6,27 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 ## steps for alpha
 
-* plant and harvest work correctly - []
+- [x] plant and harvest work correctly
 
-* start fleshing out trees - []
+- [x] start fleshing out trees
 
-* framework built for small processing - []
+- [] framework built for small processing
 
-* config working correctly - []
+- [x] config working correctly
 
-* skill tree started well - [x]
+- [x] skill tree started well
 
-* buy and sell working - []
+- [] buy and sell working
 
-* skill points added - [x]
+- [x] skill points added
 
-* post arguments taken correctly - [x]
+- [x] post arguments taken correctly
 
-* find a standard to document api and api quirks -[]
+- [] find a standard to document api and api quirks
 
-* memory cleaned up -[]
+- [] memory cleaned up
 
-* https added - []
+- [] https added
 
 ## API documentation
 
@@ -165,6 +165,12 @@ It will run at localhost port 8080. (port will be configurable)
 	- example
 		- `$ curl http://localhost:8080/tree/harvest -X POST`
 
+- /tree/status
+	- Shows the status of tree plots
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/tree/status -X GET`
+
 ## Skill Tree
 
 The game features a skill tree
@@ -196,12 +202,12 @@ The game features a skill tree
 		- cowFeed
 		- chickenFeed
 	- Milling
-	- GrainMill
-		- wheatFlour
-		- cornMeal
-	- SugarMill
-		- beetSugar
-		- caneSugar
+		- GrainMill
+			- wheatFlour
+			- cornMeal
+		- SugarMill
+			- beetSugar
+			- caneSugar
 
 ## Contributing
 
@@ -211,4 +217,4 @@ Feel free to open issues or to fork it.
 
 ## License
 
-The project is under the GNU GPLv3 or later. A copy of the license is include in COPYING
+The project is under the GNU GPLv3 or later. A copy of the license is included in COPYING
