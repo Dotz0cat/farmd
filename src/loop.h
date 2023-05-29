@@ -49,6 +49,7 @@ struct _events_box {
     struct event* signal_sigusr1;
     struct event* signal_sigusr2;
     struct evhttp* http_base;
+    struct evhttp_bound_socket* socket;
 };
 
 typedef struct _loop_context loop_context;

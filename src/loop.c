@@ -100,7 +100,7 @@ void loop_run(loop_context* context) {
 
     context->event_box->http_base = evhttp_new(context->event_box->base);
 
-    if (evhttp_accept_socket(context->event_box->http_base, sock) == -1) {
+    if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
         syslog(LOG_WARNING, "evhttp_accept_socket() failed");
         abort();
     }
@@ -281,6 +281,63 @@ static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_d
 }
 
 static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
+    loop_context* context = user_data;
+
+    //reload config
+    free_config_settings(context->pre_init_info->settings);
+
+    context->pre_init_info->settings = config_parse(context->pre_init_info->config, context->pre_init_info->home, context->pre_init_info->xdg_config_home);
+
+    //reload socket
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sock  < 0) {
+        syslog(LOG_WARNING, "failed to make socket");
+        abort();
+    }
+
+    int reuseaddr_opt_val = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
+
+    if (evutil_make_socket_nonblocking(sock) < 0) {
+        syslog(LOG_WARNING, "failed to make socket nonblocking");
+        abort();
+    }
+
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = 0;
+    //get port set in config
+    sin.sin_port = htons(context->pre_init_info->settings->port);
+    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+        if (errno != EADDRINUSE) {
+            syslog(LOG_WARNING, "failed to bind socket");
+            abort();
+        }
+    }
+    if (errno != 0) {
+        if (listen(sock, 8) < 0) {
+            syslog(LOG_WARNING, "listen() failed");
+            abort();
+        }
+        
+        if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
+            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
+            abort();
+        }
+
+        evhttp_del_accept_socket(context->event_box->http_base, context->event_box->socket);
+    }
+
+    //save handling
+    //if from the commandline don't load.
+    if (context->pre_init_info->save == NULL) {
+        if (context->pre_init_info->settings->save_location != NULL) {
+            close_save(context);
+            open_save(context->pre_init_info->settings->save_location, context);
+        }
+    }
+
     return;
 }
 
