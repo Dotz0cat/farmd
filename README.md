@@ -10,23 +10,23 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 - [x] start fleshing out trees
 
-- [] framework built for small processing
+- [ ] framework built for small processing
 
 - [x] config working correctly
 
 - [x] skill tree started well
 
-- [] buy and sell working
+- [ ] buy and sell working
 
 - [x] skill points added
 
 - [x] post arguments taken correctly
 
-- [] find a standard to document api and api quirks
+- [ ] find a standard to document api and api quirks
 
-- [] memory cleaned up
+- [ ] memory cleaned up
 
-- [] https added
+- [ ] https added
 
 ## API documentation
 

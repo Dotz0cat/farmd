@@ -100,7 +100,7 @@ void loop_run(loop_context* context) {
 
     context->event_box->http_base = evhttp_new(context->event_box->base);
 
-    if (evhttp_accept_socket(context->event_box->http_base, sock) == -1) {
+    if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
         syslog(LOG_WARNING, "evhttp_accept_socket() failed");
         abort();
     }
@@ -244,6 +244,10 @@ void loop_run(loop_context* context) {
     //run loop
     event_base_loop(context->event_box->base, EVLOOP_NO_EXIT_ON_EMPTY);
 
+    if (context->db != NULL) {
+        close_save(context);
+    }
+
     //clean up
     event_del(context->event_box->signal_sigquit);
     event_del(context->event_box->signal_sigint);
@@ -259,6 +263,8 @@ void loop_run(loop_context* context) {
     event_free(context->event_box->signal_sigusr1);
     event_free(context->event_box->signal_sigusr2);
 
+    evhttp_free(context->event_box->http_base);
+
     event_base_free(context->event_box->base);
 
     free(context->event_box);
@@ -267,7 +273,7 @@ void loop_run(loop_context* context) {
 }
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data) {
-    loop_context* context = (loop_context*) user_data;
+    loop_context* context = user_data;
 
     struct timeval delay = {1, 0};
 
@@ -275,6 +281,63 @@ static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_d
 }
 
 static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
+    loop_context* context = user_data;
+
+    //reload config
+    free_config_settings(context->pre_init_info->settings);
+
+    context->pre_init_info->settings = config_parse(context->pre_init_info->config, context->pre_init_info->home, context->pre_init_info->xdg_config_home);
+
+    //reload socket
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sock  < 0) {
+        syslog(LOG_WARNING, "failed to make socket");
+        abort();
+    }
+
+    int reuseaddr_opt_val = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
+
+    if (evutil_make_socket_nonblocking(sock) < 0) {
+        syslog(LOG_WARNING, "failed to make socket nonblocking");
+        abort();
+    }
+
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = 0;
+    //get port set in config
+    sin.sin_port = htons(context->pre_init_info->settings->port);
+    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+        if (errno != EADDRINUSE) {
+            syslog(LOG_WARNING, "failed to bind socket");
+            abort();
+        }
+    }
+    if (errno != 0) {
+        if (listen(sock, 8) < 0) {
+            syslog(LOG_WARNING, "listen() failed");
+            abort();
+        }
+        
+        if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
+            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
+            abort();
+        }
+
+        evhttp_del_accept_socket(context->event_box->http_base, context->event_box->socket);
+    }
+
+    //save handling
+    //if from the commandline don't load.
+    if (context->pre_init_info->save == NULL) {
+        if (context->pre_init_info->settings->save_location != NULL) {
+            close_save(context);
+            open_save(context->pre_init_info->settings->save_location, context);
+        }
+    }
+
     return;
 }
 
@@ -537,8 +600,7 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
         return;
     }
 
-    close_save(context->db);
-    context->db = NULL;
+    close_save(context);
 
     struct evbuffer* returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "save closed\r\n");
@@ -588,8 +650,41 @@ static int create_save(const char* file_name, loop_context* context) {
         return 3;
     }
 
-    close_save(context->db);
+    close_save_db(context->db);
     context->db = NULL;
+
+    return 0;
+}
+
+static int close_save(loop_context* context) {
+    close_save_db(context->db);
+    context->db = NULL;
+
+    //free fields
+    if (context->field_list != NULL) {
+        fields_list* field_list = context->field_list;
+        while (field_list != NULL) {
+            if (field_list->event != NULL) {
+                event_del(field_list->event);
+                event_free(field_list->event);
+            }
+            fields_list* temp = field_list;
+            field_list = field_list->next;
+            free(temp);
+        }
+    }
+
+    //free trees
+    if (context->tree_list != NULL) {
+        trees_list* tree_list = context->tree_list;
+        while (tree_list->event != NULL) {
+            event_del(tree_list->event);
+            event_free(tree_list->event);
+        }
+        trees_list* temp = tree_list;
+        tree_list = tree_list->next;
+        free(temp);
+    }
 
     return 0;
 }

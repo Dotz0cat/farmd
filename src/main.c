@@ -56,12 +56,17 @@ int main(int argc, char** argv) {
 
     loop_run(context);
 
+    //clean up
+    free_pre_init_stuff(context->pre_init_info);
+
     free(context);
+
+    closelog();
 
     return EXIT_SUCCESS;
 }
 
-static void init_daemon() {
+static void init_daemon(void) {
     pid_t pid;
 
     pid = fork();
@@ -166,6 +171,9 @@ static pre_init_stuff* pre_init(char* config, char* save) {
 
     if (save != NULL) {
         info->save = save;
+    }
+    else {
+        info->save = NULL;
     }
 
     info->settings = config_parse(info->config, info->home, info->xdg_config_home);

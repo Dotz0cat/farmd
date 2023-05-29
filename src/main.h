@@ -33,7 +33,7 @@ This file is part of farmd.
 #include "loop.h"
 #include "config.h"
 
-static void init_daemon();
+static void init_daemon(void);
 static pre_init_stuff* pre_init(char* config, char* save);
 
 #endif /* MAIN_H */

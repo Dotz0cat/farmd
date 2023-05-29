@@ -102,6 +102,8 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
         settings->save_location = NULL;
     }
 
+    config_destroy(&cfg);
+
     return settings;
 }
 
@@ -152,4 +154,40 @@ static void make_default_config(const char* output_file) {
     }
 
     config_destroy(&cfg);
+}
+
+void free_pre_init_stuff(pre_init_stuff* pre_init) {
+    if (pre_init != NULL) {
+        if (pre_init->save != NULL) {
+            free(pre_init->save);
+        }
+
+        if (pre_init->config != NULL) {
+            free(pre_init->config);
+        }
+
+        if (pre_init->xdg_config_home != NULL) {
+            free(pre_init->xdg_config_home);
+        }
+
+        if (pre_init->home != NULL) {
+            free(pre_init->home);
+        }
+
+        if (pre_init->settings != NULL) {
+            free_config_settings(pre_init->settings);
+        }
+
+        free(pre_init);
+    }
+}
+
+void free_config_settings(config_settings* settings) {
+    if (settings != NULL) {
+        if (settings->save_location != NULL) {
+            free(settings->save_location);
+        }
+
+        free(settings);
+    }
 }
