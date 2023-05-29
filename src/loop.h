@@ -83,6 +83,7 @@ static void close_save_cb(struct evhttp_request* req, void* arg);
 
 static int open_save(const char* file_name, loop_context* context);
 static int create_save(const char* file_name, loop_context* context);
+static int close_save(loop_context* context);
 
 static void get_barn_allocation_cb(struct evhttp_request* req, void* arg);
 static void get_silo_allocation_cb(struct evhttp_request* req, void* arg);

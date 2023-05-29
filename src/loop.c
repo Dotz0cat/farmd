@@ -244,6 +244,10 @@ void loop_run(loop_context* context) {
     //run loop
     event_base_loop(context->event_box->base, EVLOOP_NO_EXIT_ON_EMPTY);
 
+    if (context->db != NULL) {
+        close_save(context);
+    }
+
     //clean up
     event_del(context->event_box->signal_sigquit);
     event_del(context->event_box->signal_sigint);
@@ -259,6 +263,8 @@ void loop_run(loop_context* context) {
     event_free(context->event_box->signal_sigusr1);
     event_free(context->event_box->signal_sigusr2);
 
+    evhttp_free(context->event_box->http_base);
+
     event_base_free(context->event_box->base);
 
     free(context->event_box);
@@ -267,7 +273,7 @@ void loop_run(loop_context* context) {
 }
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data) {
-    loop_context* context = (loop_context*) user_data;
+    loop_context* context = user_data;
 
     struct timeval delay = {1, 0};
 
@@ -537,8 +543,7 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
         return;
     }
 
-    close_save(context->db);
-    context->db = NULL;
+    close_save(context);
 
     struct evbuffer* returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "save closed\r\n");
@@ -588,8 +593,41 @@ static int create_save(const char* file_name, loop_context* context) {
         return 3;
     }
 
-    close_save(context->db);
+    close_save_db(context->db);
     context->db = NULL;
+
+    return 0;
+}
+
+static int close_save(loop_context* context) {
+    close_save_db(context->db);
+    context->db = NULL;
+
+    //free fields
+    if (context->field_list != NULL) {
+        fields_list* field_list = context->field_list;
+        while (field_list != NULL) {
+            if (field_list->event != NULL) {
+                event_del(field_list->event);
+                event_free(field_list->event);
+            }
+            fields_list* temp = field_list;
+            field_list = field_list->next;
+            free(temp);
+        }
+    }
+
+    //free trees
+    if (context->tree_list != NULL) {
+        trees_list* tree_list = context->tree_list;
+        while (tree_list->event != NULL) {
+            event_del(tree_list->event);
+            event_free(tree_list->event);
+        }
+        trees_list* temp = tree_list;
+        tree_list = tree_list->next;
+        free(temp);
+    }
 
     return 0;
 }

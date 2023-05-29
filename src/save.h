@@ -35,7 +35,7 @@ enum item_status {
 
 int create_save_db(const char* filename);
 int open_save_db(const char* filename, sqlite3** db);
-void close_save(sqlite3* db);
+void close_save_db(sqlite3* db);
 
 int barn_query(sqlite3* db, const char* item);
 int silo_query(sqlite3* db, const char* item);

@@ -74,7 +74,7 @@ int open_save_db(const char* filename, sqlite3** db) {
     }
 }
 
-void close_save(sqlite3* db) {
+void close_save_db(sqlite3* db) {
     sqlite3_close(db);
 }
 

@@ -55,4 +55,7 @@ static inline int file_exsits(const char* file);
 static inline int folder_exsits(const char* folder);
 static void make_default_config(const char* output_file);
 
+void free_pre_init_stuff(pre_init_stuff* pre_init);
+void free_config_settings(config_settings* settings);
+
 #endif /* CONFIG_H */
