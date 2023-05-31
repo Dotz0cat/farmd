@@ -81,6 +81,11 @@ int remove_tree(sqlite3* db, const int index);
 int set_tree_type(sqlite3* db, const int index, const char* type);
 const char* get_tree_type(sqlite3* db, const int tree_number);
 
+int add_field(sqlite3* db, const int index);
+int remove_field(sqlite3* db, const int index);
+int set_field_type(sqlite3* db, const int index, const char* type);
+const char* get_field_type(sqlite3* db, const int field_number);
+
 #endif /* SAVE_H */
 
 /*
@@ -105,4 +110,6 @@ CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);
 CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);
 
 CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);
+
+CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT);
 */

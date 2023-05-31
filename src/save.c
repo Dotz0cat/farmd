@@ -41,7 +41,8 @@ int create_save_db(const char* filename) {
                 "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);"
                 "CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);"
                 "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);"
-                "CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);";
+                "CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);"
+                "CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT);";
 
     rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
 
@@ -1181,8 +1182,137 @@ const char* get_tree_type(sqlite3* db, const int tree_number) {
 
     sqlite3_finalize(stmt);
 
-    //sqlite3_snprintf(int, char *, const char *, ...)
+    return type;
+}
 
-    //return (const char*) tree_type;
+int add_field(sqlite3* db, const int index) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "INSERT OR IGNORE INTO Fields (FieldIndex, Type) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, index);
+        sqlite3_bind_text(stmt, 2, "none", -1, NULL);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int remove_field(sqlite3* db, const int index) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Fields SET Type = 'none' WHERE FieldIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int set_field_type(sqlite3* db, const int index, const char* type) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE Fields SET Type = ? WHERE FieldIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, type, -1, NULL);
+        sqlite3_bind_int(stmt, 2, index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+const char* get_field_type(sqlite3* db, const int field_number) {
+    sqlite3_stmt* stmt;
+
+    const unsigned char* field_type = NULL;
+    const char* type = NULL;
+
+    char* sql = "SELECT Type FROM Fields WHERE FieldIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, field_number);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return NULL;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    field_type = sqlite3_column_text(stmt, 0);
+
+    type = strdup( (const char*) field_type);
+
+    sqlite3_finalize(stmt);
+
     return type;
 }

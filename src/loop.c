@@ -617,6 +617,19 @@ static int open_save(const char* file_name, loop_context* context) {
     //make fields list here
     context->field_list = make_fields_list(get_number_of_fields(context->db));
 
+    //populate fields
+    int fields = get_number_of_fields(context->db);
+    if (fields > 0) {
+        fields_list* list = context->field_list;
+        for (int i = 0; i < fields; i++) {
+            const char* field_type = get_field_type(context->db, i);
+            list->type = field_crop_string_to_enum(field_type);
+            free((char*) field_type);
+            //events here later
+            list = list->next;
+        }
+    }
+
     context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
 
     //populate trees
@@ -627,6 +640,7 @@ static int open_save(const char* file_name, loop_context* context) {
             const char* tree_type = get_tree_type(context->db, i);
             list->type = tree_crop_string_to_enum(tree_type);
             free((char*) tree_type);
+            //events here later
             list = list->next;
         }
     }
@@ -979,6 +993,9 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                 }
                 list->type = NONE_FIELD;
                 list->completion = 0;
+                remove_field(context->db, list->field_number);
+                //remove complete flag here
+                //time hackery here
                 update_meta(context->db, 2, "xp");
                 xp_check(context->db);
             }
@@ -1023,22 +1040,43 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
 
     if (context->field_list == NULL) {
         context->field_list = make_fields_list(get_number_of_fields(context->db));
-            if (context->field_list == NULL) {
+        if (context->field_list == NULL) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+         for (int i = 0; i < get_number_of_fields(context->db); i++) {
+            if (add_field(context->db, i) != 0) {
                 struct evbuffer* returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
+                evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding field to db");
                 return;
             }
+        }
     }
 
-    if (get_number_of_fields_list(context->field_list) < get_number_of_fields(context->db)) {
+    int current = 0;
+    if ((current = get_number_of_fields_list(context->field_list)) < get_number_of_fields(context->db)) {
         if (amend_fields_list(context->field_list, get_number_of_fields(context->db)) != 0) {
             struct evbuffer* returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not amend fields\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
             return;
+        }
+        for (int i = current; i < get_number_of_fields(context->db); i++) {
+            if (add_field(context->db, i) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding field to db");
+                return;
+            }
         }
     }
 
@@ -1146,6 +1184,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
                 return;
             }
             list->type = type;
+            set_field_type(context->db, list->field_number, field_crop_enum_to_string(type));
             const struct timeval* tv = &field_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
@@ -1256,6 +1295,20 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
 
     if (current == 0) {
         context->field_list = make_fields_list(get_number_of_fields(context->db));
+
+        //get the sql in shape
+        int fields = get_number_of_fields(context->db);
+        fields_list* list = context->field_list;
+        for (int i = 0; i < fields; i++) {
+            if (add_field(context->db, list->field_number) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding field to db");
+                return;
+            }
+        }
     }
     else {
         if (amend_fields_list(context->field_list, get_number_of_fields(context->db)) != 0) {
@@ -1265,6 +1318,16 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
             evbuffer_free(returnbuffer);
             syslog(LOG_WARNING, "error amending field list");
             return;
+        }
+        for (int i = current; i < get_number_of_fields(context->db); i++) {
+            if (add_field(context->db, i) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding field to db");
+                return;
+            }
         }
     }
 
@@ -1322,6 +1385,13 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
             return;
         }
     }
+    else {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
 
     if (current == 0) {
         context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
@@ -1344,7 +1414,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
             syslog(LOG_WARNING, "error amending tree list");
             return;
         }
-        for (int i = current - 1; i <= get_number_of_tree_plots(context->db); i++) {
+        for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
             if (add_tree(context->db, i) != 0) {
                 struct evbuffer* returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
@@ -1413,10 +1483,30 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (strcmp(query, "Fields") == 0) {
-        //nop
+        //limit is 1 per level
+        if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", query);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            return;
+        }
     }
     else if (strcmp(query, "TreePlots") == 0) {
-        //nop
+        //limit is 1 per level
+        if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", query);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            return;
+        }
     }
     else if (get_skill_status(context->db, query) > 0) {
         struct evbuffer* returnbuffer = evbuffer_new();
@@ -1512,22 +1602,43 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
 
     if (context->tree_list == NULL) {
         context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
-            if (context->tree_list == NULL) {
+        if (context->tree_list == NULL) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not make trees\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        for (int i = 0; i < get_number_of_tree_plots(context->db); i++) {
+            if (add_tree(context->db, i) != 0) {
                 struct evbuffer* returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not make trees\r\n");
+                evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding tree to db");
                 return;
             }
+        }
     }
 
-    if (get_number_of_trees_list(context->tree_list) < get_number_of_tree_plots(context->db)) {
+    int current;
+    if ((current = get_number_of_trees_list(context->tree_list)) < get_number_of_tree_plots(context->db)) {
         if (amend_trees_list(context->tree_list, get_number_of_tree_plots(context->db)) != 0) {
             struct evbuffer* returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not amend trees\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
             return;
+        }
+        for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
+            if (add_tree(context->db, i) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding tree to db");
+                return;
+            }
         }
     }
 
