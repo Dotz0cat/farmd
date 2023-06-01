@@ -66,6 +66,13 @@ struct _loop_context {
     trees_list* tree_list;
 };
 
+//bespoke struct just so I can pass 2 pointers with one
+struct box_for_list_and_db {
+    void* list;
+
+    sqlite3* db;
+};
+
 void loop_run(loop_context* context);
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data);

@@ -24,6 +24,7 @@ This file is part of farmd.
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
+#include <time.h>
 
 #include <sqlite3.h>
 
@@ -81,6 +82,23 @@ int remove_tree(sqlite3* db, const int index);
 int set_tree_type(sqlite3* db, const int index, const char* type);
 const char* get_tree_type(sqlite3* db, const int tree_number);
 
+int set_tree_time(sqlite3* db, const int index, const time_t time);
+time_t get_tree_time(sqlite3* db, const int index);
+int clear_tree_time(sqlite3* db, const int index);
+int set_tree_completion(sqlite3* db, const int index, const int completion);
+int get_tree_completion(sqlite3* db, const int index);
+
+int add_field(sqlite3* db, const int index);
+int remove_field(sqlite3* db, const int index);
+int set_field_type(sqlite3* db, const int index, const char* type);
+const char* get_field_type(sqlite3* db, const int field_number);
+
+int set_field_time(sqlite3* db, const int index, const time_t time);
+time_t get_field_time(sqlite3* db, const int index);
+int clear_field_time(sqlite3* db, const int index);
+int set_field_completion(sqlite3* db, const int index, const int completion);
+int get_field_completion(sqlite3* db, const int index);
+
 #endif /* SAVE_H */
 
 /*
@@ -104,5 +122,7 @@ CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);
 
 CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);
 
-CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT);
+CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
+
+CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
 */
