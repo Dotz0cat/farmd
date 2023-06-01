@@ -626,28 +626,34 @@ static int open_save(const char* file_name, loop_context* context) {
             list->type = field_crop_string_to_enum(field_type);
             free((char*) field_type);
 
-            if (get_field_completion(context->db, list->field_number) == 0) {
-                time_t now = time(NULL);
-                time_t time_from_db = get_field_time(context->db, list->field_number);
+            if (list->type != NONE_FIELD) {
 
-                if (time_from_db > now) {
-                    //make an event as it has not finshed
-                    struct timeval tv;
-                    tv.tv_sec = time_from_db - now;
-                    tv.tv_usec = 0;
+                if (get_field_completion(context->db, list->field_number) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_field_time(context->db, list->field_number);
 
-                    list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, list);
+                    if (time_from_db > now) {
+                        //make an event as it has not finshed
+                        struct timeval tv;
+                        tv.tv_sec = time_from_db - now;
+                        tv.tv_usec = 0;
 
-                    event_add(list->event, &tv);
+                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        box->list = list;
+                        box->db = context->db;
+                        list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, box);
+
+                        event_add(list->event, &tv);
+                    }
+                    else {
+                        //if it is not less then it is equal or greater
+                        list->completion = 1;
+                        set_field_completion(context->db, list->field_number, 1);
+                    }
                 }
                 else {
-                    //if it is not less then it is equal or greater
                     list->completion = 1;
-                    set_field_completion(context->db, list->field_number, 1);
                 }
-            }
-            else {
-                list->completion = 1;
             }
             
 
@@ -667,28 +673,34 @@ static int open_save(const char* file_name, loop_context* context) {
             free((char*) tree_type);
             //events here later
 
-            if (get_tree_completion(context->db, list->tree_number) == 0) {
-                time_t now = time(NULL);
-                time_t time_from_db = get_tree_time(context->db, list->tree_number);
+            if (list->type != NONE_TREE) {
+                
+                if (get_tree_completion(context->db, list->tree_number) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_tree_time(context->db, list->tree_number);
 
-                if (time_from_db > now) {
-                    //make an event as it has not finshed
-                    struct timeval tv;
-                    tv.tv_sec = time_from_db - now;
-                    tv.tv_usec = 0;
+                    if (time_from_db > now) {
+                        //make an event as it has not finshed
+                        struct timeval tv;
+                        tv.tv_sec = time_from_db - now;
+                        tv.tv_usec = 0;
 
-                    list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, list);
+                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        box->list = list;
+                        box->db = context->db;
+                        list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
 
-                    event_add(list->event, &tv);
+                        event_add(list->event, &tv);
+                    }
+                    else {
+                        //if it is not less then it is equal or greater
+                        list->completion = 1;
+                        set_tree_completion(context->db, list->tree_number, 1);
+                    }
                 }
                 else {
-                    //if it is not less then it is equal or greater
                     list->completion = 1;
-                    set_tree_completion(context->db, list->tree_number, 1);
                 }
-            }
-            else {
-                list->completion = 1;
             }
 
             list = list->next;
@@ -730,6 +742,10 @@ static int close_save(loop_context* context) {
         while (field_list != NULL) {
             if (field_list->event != NULL) {
                 event_del(field_list->event);
+                void* temp;
+                if ((temp = event_get_callback_arg(field_list->event)) != NULL) {
+                    free(temp);
+                }
                 event_free(field_list->event);
             }
             fields_list* temp = field_list;
@@ -743,6 +759,10 @@ static int close_save(loop_context* context) {
         trees_list* tree_list = context->tree_list;
         while (tree_list->event != NULL) {
             event_del(tree_list->event);
+                void* temp;
+                if ((temp = event_get_callback_arg(tree_list->event)) != NULL) {
+                    free(temp);
+                }
             event_free(tree_list->event);
         }
         trees_list* temp = tree_list;
@@ -1204,7 +1224,11 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     do {
         if (list->type == NONE_FIELD) {
             if (list->event == NULL) {
-                list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, list);
+                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                box->list = list;
+                box->db = context->db;
+
+                list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, box);
                 if (list->event == NULL) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
@@ -1269,9 +1293,13 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
 }
 
 static void field_ready_cb(evutil_socket_t fd, short events, void* user_data) {
-    fields_list* list = user_data;
+    struct box_for_list_and_db* box = user_data;
+
+    fields_list* list = box->list;
 
     list->completion = 1;
+
+    set_field_completion(box->db, list->field_number, 1);
 
     return;
 }
@@ -1778,7 +1806,11 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             //plant a tree
             //check if event is clear
             if (list->event == NULL) {
-                list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, list);
+                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                box->list = list;
+                box->db = context->db;
+
+                list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
                 if (list->event == NULL) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
@@ -1853,10 +1885,12 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
 }
 
 static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_data) {
-
-    trees_list* list = user_data;
+    struct box_for_list_and_db* box = user_data;
+    trees_list* list = box->list;
 
     list->completion = 1;
+
+    set_tree_completion(box->db, list->tree_number, 1);
 
     return;
 }
