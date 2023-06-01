@@ -625,7 +625,32 @@ static int open_save(const char* file_name, loop_context* context) {
             const char* field_type = get_field_type(context->db, i);
             list->type = field_crop_string_to_enum(field_type);
             free((char*) field_type);
-            //events here later
+
+            if (get_field_completion(context->db, list->field_number) == 0) {
+                time_t now = time(NULL);
+                time_t time_from_db = get_field_time(context->db, list->field_number);
+
+                if (time_from_db > now) {
+                    //make an event as it has not finshed
+                    struct timeval tv;
+                    tv.tv_sec = time_from_db - now;
+                    tv.tv_usec = 0;
+
+                    list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, list);
+
+                    event_add(list->event, &tv);
+                }
+                else {
+                    //if it is not less then it is equal or greater
+                    list->completion = 1;
+                    set_field_completion(context->db, list->field_number, 1);
+                }
+            }
+            else {
+                list->completion = 1;
+            }
+            
+
             list = list->next;
         }
     }
@@ -641,6 +666,31 @@ static int open_save(const char* file_name, loop_context* context) {
             list->type = tree_crop_string_to_enum(tree_type);
             free((char*) tree_type);
             //events here later
+
+            if (get_tree_completion(context->db, list->tree_number) == 0) {
+                time_t now = time(NULL);
+                time_t time_from_db = get_tree_time(context->db, list->tree_number);
+
+                if (time_from_db > now) {
+                    //make an event as it has not finshed
+                    struct timeval tv;
+                    tv.tv_sec = time_from_db - now;
+                    tv.tv_usec = 0;
+
+                    list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, list);
+
+                    event_add(list->event, &tv);
+                }
+                else {
+                    //if it is not less then it is equal or greater
+                    list->completion = 1;
+                    set_tree_completion(context->db, list->tree_number, 1);
+                }
+            }
+            else {
+                list->completion = 1;
+            }
+
             list = list->next;
         }
     }
@@ -928,6 +978,11 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
         char* complete;
         if (list->completion == 1) {
             complete = "ready";
+            //make sure its right
+            set_field_completion(context->db, list->field_number, 1);
+        }
+        else if (get_field_completion(context->db, list->field_number) == 1) {
+            complete = "ready";
         }
         else {
             complete = "not ready";
@@ -994,8 +1049,10 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                 list->type = NONE_FIELD;
                 list->completion = 0;
                 remove_field(context->db, list->field_number);
-                //remove complete flag here
-                //time hackery here
+                //reset the complete flag to false
+                set_field_completion(context->db, list->field_number, 0);
+                //clear the field time as it had now been harvested
+                clear_field_time(context->db, list->field_number);
                 update_meta(context->db, 2, "xp");
                 xp_check(context->db);
             }
@@ -1185,6 +1242,10 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             }
             list->type = type;
             set_field_type(context->db, list->field_number, field_crop_enum_to_string(type));
+            //set field completion
+            set_field_completion(context->db, list->field_number, 0);
+            //set time it should complete
+            set_field_time(context->db, list->field_number, field_time[type].tv_sec);
             const struct timeval* tv = &field_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
@@ -1758,6 +1819,10 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
 
             //add to trees table
             set_tree_type(context->db, list->tree_number, tree_crop_enum_to_string(type));
+            set_tree_completion(context->db, list->tree_number, 0);
+
+            //set the completetion time
+            set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
 
             //set the tree timer
             const struct timeval* tv = &tree_time[list->type];
@@ -1850,6 +1915,10 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                 }
                 list->completion = 0;
 
+                //update the db
+                set_tree_completion(context->db, list->tree_number, 0);
+                set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
+
                 const struct timeval* tv = &tree_time[list->type];
                 int rc = event_add(list->event, tv);
                 if (rc != 0) {
@@ -1919,6 +1988,10 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     do {
         char* complete;
         if (list->completion == 1) {
+            complete = "ready";
+            set_tree_completion(context->db, list->tree_number, 1);
+        }
+        else if (get_tree_completion(context->db, list->tree_number) == 1) {
             complete = "ready";
         }
         else {
