@@ -113,14 +113,14 @@ CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status T
     SELECT SUM(Quanity) FROM Silo
     WHERE Status != 'SPECIAL';
     
-CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT);
-CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT);
+CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
+CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 
-CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);
+CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT CHECK(Status >= 0));
 
-CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);
+CREATE TABLE EconContracts (Buyer TEXT, Price INT CHECK(Price > 0));
 
-CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);
+CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 
 CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
 

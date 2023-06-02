@@ -23,41 +23,51 @@ This file is part of farmd.
 #include <stdlib.h>
 #include <string.h>
 
-#define FIELD_CROP_TABLE \
-X(NONE_FIELD, "none", 0), \
-X(WHEAT, "wheat", 30), \
-X(CORN, "corn", 60), \
-X(POTATOS, "potatos", 60), \
-X(BEETS, "beets", 60), \
-X(SUGARCANE, "sugarcane", 60), \
-X(TURNIPS, "turnips", 60), \
-X(TOMATOS, "tomatos", 60), \
-X(CUCUMBERS, "cucumbers", 60), \
-X(OKRA, "okra", 60)
+enum storage {
+    NONE_STORAGE,
+    BARN,
+    SILO
+};
 
-#define X(a, b, c) a
+enum item_type {
+    NONE_PRODUCT,
+    FIELD_PRODUCT,
+    TREE_PRODUCT,
+    OTHER_PRODUCT
+};
+
+//enum, string, time, buy, sell, storage, item_type
+#define FIELD_CROP_TABLE \
+X(NONE_FIELD, "none", 0, 0, 0, NONE_STORAGE, NONE_PRODUCT), \
+X(WHEAT, "wheat", 30, 10, 8, SILO, FIELD_PRODUCT), \
+X(CORN, "corn", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(POTATOS, "potatos", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(BEETS, "beets", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(SUGARCANE, "sugarcane", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(TURNIPS, "turnips", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(TOMATOS, "tomatos", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(CUCUMBERS, "cucumbers", 60, 10, 8, SILO, FIELD_PRODUCT), \
+X(OKRA, "okra", 60, 10, 8, SILO, FIELD_PRODUCT)
+
+#define X(a, b, c, d, e, f, g) a
 enum field_crop {
     FIELD_CROP_TABLE
 };
 #undef X
 
+//enum, string, time, buy, sell, storage, item_type
 #define TREE_CROP_TABLE \
-X(NONE_TREE, "none", 0), \
-X(PEARS, "pears", 60), \
-X(APPLES, "apples", 60), \
-X(ORANGES, "oranges", 60), \
-X(PEACHES, "peaches", 60)
+X(NONE_TREE, "none", 0, 0, 0, NONE_STORAGE, NONE_PRODUCT), \
+X(PEARS, "pears", 60, 10, 8, BARN, TREE_PRODUCT), \
+X(APPLES, "apples", 60, 10, 8, BARN, TREE_PRODUCT), \
+X(ORANGES, "oranges", 60, 10, 8, BARN, TREE_PRODUCT), \
+X(PEACHES, "peaches", 60, 10, 8, BARN, TREE_PRODUCT)
 
-#define X(a,b, c) a
+#define X(a, b, c, d, e, f, g) a
 enum tree_crop {
     TREE_CROP_TABLE
 };
 #undef X
-
-enum animal_products {
-    MILK,
-    EGGS
-};
 
 typedef struct _fields_list fields_list;
 
@@ -95,7 +105,7 @@ static fields_list* wind_fields_to_tail(fields_list* list);
 int amend_fields_list(fields_list* head, int new_number);
 int get_number_of_fields_list(fields_list* head);
 void set_field_event_pointer(fields_list* list, void* event);
-const char* field_crop_enum_to_string(enum field_crop type);
+const char* field_crop_enum_to_string(const enum field_crop type);
 enum field_crop field_crop_string_to_enum(const char* type);
 
 static trees_list* add_tree_to_list(trees_list* prev, int tree_number);
@@ -104,7 +114,18 @@ static trees_list* wind_trees_to_tail(trees_list* head);
 int amend_trees_list(trees_list* head, const int new_number);
 int get_number_of_trees_list(trees_list* head);
 void set_trees_event_pointer(trees_list* node, void* event);
-const char* tree_crop_enum_to_string(enum tree_crop type);
+const char* tree_crop_enum_to_string(const enum tree_crop type);
 enum tree_crop tree_crop_string_to_enum(const char* type);
+
+enum storage get_storage_type_string(const char* string);
+enum storage get_storage_type_field(const enum field_crop type);
+enum storage get_storage_type_tree(const enum tree_crop type);
+int tree_crop_buy_cost(enum tree_crop item);
+int tree_crop_sell_cost(enum tree_crop item);
+int field_crop_buy_cost(enum field_crop item);
+int field_crop_sell_cost(enum field_crop item);
+enum item_type get_product_type_string(const char* string);
+enum item_type get_product_type_field(const enum field_crop type);
+enum item_type get_product_type_tree(const enum tree_crop type);
 
 #endif /* LIST_H */

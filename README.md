@@ -10,23 +10,73 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 - [x] start fleshing out trees
 
-- [ ] framework built for small processing
+- [x] framework built for small processing
+	- Satisfied by the addition of timestamps and the box_for_list_and_db struct
 
 - [x] config working correctly
 
 - [x] skill tree started well
 
-- [ ] buy and sell working
+- [x] buy and sell working
 
 - [x] skill points added
 
 - [x] post arguments taken correctly
 
-- [ ] find a standard to document api and api quirks
+- [x] find a standard to document api and api quirks
+	- mostly the readme at this stage
+
+- [ ] https added
 
 - [ ] memory cleaned up
 
-- [ ] https added
+## Steps for beta
+
+- [ ] processing added
+	- [ ] dairy
+	- [ ] feedmill
+	- [ ] grainmill
+	- [ ] sugarmill
+
+- [ ] building upgrades
+
+- [ ] livestock
+
+- [ ] ping save
+
+- [ ] basic automation
+	- [ ] auto harvest field
+	- [ ] auto plant fields
+	- [ ] auto harvest trees
+
+- [ ] tree maturity
+
+- [ ] improve functions
+	- candidates
+		- [ ] get_product_type_string
+		- [ ] get_storage_type_string
+		- [ ] field_crop_string_to_enum
+		- [ ] tree_crop_string_to_enum
+
+- [ ] special item system
+
+- [ ] find a standard to document api and api quirks
+
+- [ ] todo moved away from readme
+
+## Steps for 1.0
+
+- [ ] works
+
+- [ ] optimzation
+
+- [ ] no memory leaks
+	- [ ] asan clean
+	- [ ] valgrind clean
+
+- [ ] full man pages
+
+- [ ] proper readme
 
 ## API documentation
 
@@ -170,6 +220,34 @@ It will run at localhost port 8080. (port will be configurable)
 	- Uses http GET
 	- example
 		- `$ curl http://localhost:8080/tree/status -X GET`
+
+- /buy/item
+	- Buys an item
+	- Uses http POST
+	- Takes item as query or post argument
+	- example
+		- `$ curl http://localhost:8080/buy/item?wheat -X POST`
+
+- /sell/item
+	- Sells an item
+	- Uses http POST
+	- Takes item as query or post argument
+	- example
+		- `$ curl http://localhost:8080/sell/item?wheat -X POST`
+
+- /buy/price
+	- Shows the price of an item
+	- Uses http GET
+	- Takes item as query
+	- example
+		- `$ curl http://localhost:8080/buy/price?wheat -X GET`
+
+- /sell/price
+	- Shows the price of an item
+	- Uses http GET
+	- Takes item as query
+	- example
+		- `$ curl http://localhost:8080/sell/price?wheat -X GET`
 
 ## Skill Tree
 

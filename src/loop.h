@@ -119,4 +119,9 @@ static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_d
 static void tree_harvest_cb(struct evhttp_request* req, void* arg);
 static void tree_status_cb(struct evhttp_request* req, void* arg);
 
+static void buy_item_cb(struct evhttp_request* req, void* arg);
+static void sell_item_cb(struct evhttp_request* req, void* arg);
+static void item_buy_price_cb(struct evhttp_request* req, void* arg);
+static void item_sell_price_cb(struct evhttp_request* req, void* arg);
+
 #endif /* LOOP_H */

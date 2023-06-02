@@ -36,11 +36,11 @@ int create_save_db(const char* filename) {
                 "CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
                 "CREATE VIEW BarnCompacity AS SELECT SUM(Quantity) FROM Barn WHERE Status != 'SPECIAL';"
                 "CREATE VIEW SiloCompacity AS SELECT SUM(Quantity) FROM Silo WHERE Status != 'SPECIAL';"
-                "CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT);"
-                "CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT);"
-                "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT);"
-                "CREATE TABLE EconContracts (Buyer TEXT, PRICE INT);"
-                "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT);"
+                "CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
+                "CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
+                "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT CHECK(Status >= 0));"
+                "CREATE TABLE EconContracts (Buyer TEXT, Price INT CHECK(Price > 0));"
+                "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
                 "CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);"
                 "CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);";
 

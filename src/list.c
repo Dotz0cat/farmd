@@ -19,14 +19,74 @@ This file is part of farmd.
 
 #include "list.h"
 
-#define X(a, b, c) [a]=b
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=b
 const char* field_crop_strings[] = {
     FIELD_CROP_TABLE
 };
 #undef X
 
-#define X(a, b, c) [a]=b
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=b
 const char* tree_crop_strings[] = {
+    TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=d
+const int field_crop_buy_cost_table[] = {
+    FIELD_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=d
+const int tree_crop_buy_cost_table[] = {
+    TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=e
+const int field_crop_sell_cost_table[] = {
+    FIELD_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=e
+const int tree_crop_sell_cost_table[] = {
+    TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=f
+const enum storage field_crop_storage[] = {
+    FIELD_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=f
+const enum storage tree_crop_storage[] = {
+    TREE_CROP_TABLE
+};
+#undef X
+
+//yeah a little redundant, but its fast
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=g
+const enum item_type field_crop_type[] = {
+    FIELD_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]=g
+const enum item_type tree_crop_type[] = {
     TREE_CROP_TABLE
 };
 #undef X
@@ -125,13 +185,13 @@ void set_field_event_pointer(fields_list* list, void* event) {
     list->event = event;
 } 
 
-const char* field_crop_enum_to_string(enum field_crop type) {
+const char* field_crop_enum_to_string(const enum field_crop type) {
     return field_crop_strings[type];
 }
 
 enum field_crop field_crop_string_to_enum(const char* type) {
     for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
-        if (strcmp(type, field_crop_strings[i]) == 0) {
+        if (strcasecmp(type, field_crop_strings[i]) == 0) {
             return i;
         }
     }
@@ -233,16 +293,88 @@ void set_trees_event_pointer(trees_list* node, void* event) {
     node->event = event;
 }
 
-const char* tree_crop_enum_to_string(enum tree_crop type) {
+const char* tree_crop_enum_to_string(const enum tree_crop type) {
     return tree_crop_strings[type];
 }
 
 enum tree_crop tree_crop_string_to_enum(const char* type) {
     for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
-        if (strcmp(type, tree_crop_strings[i]) == 0) {
+        if (strcasecmp(type, tree_crop_strings[i]) == 0) {
             return i;
         }
     }
 
     return NONE_TREE;
+}
+
+enum storage get_storage_type_string(const char* string) {
+    if (strcasecmp(string, "none") == 0) {
+        return NONE_STORAGE;
+    }
+
+    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
+        if (strcasecmp(string, field_crop_strings[i]) == 0) {
+            return get_storage_type_field(i);
+        }
+    }
+
+    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+        if (strcasecmp(string, tree_crop_strings[i]) == 0) {
+            return get_storage_type_tree(i);
+        }
+    }
+
+    return NONE_STORAGE;
+}
+
+enum storage get_storage_type_field(const enum field_crop type) {
+    return field_crop_storage[type];
+}
+
+enum storage get_storage_type_tree(const enum tree_crop type) {
+    return tree_crop_storage[type];
+}
+
+int tree_crop_buy_cost(enum tree_crop item) {
+    return tree_crop_buy_cost_table[item];
+}
+
+int tree_crop_sell_cost(enum tree_crop item) {
+    return tree_crop_sell_cost_table[item];
+}
+
+int field_crop_buy_cost(enum field_crop item) {
+    return field_crop_buy_cost_table[item];
+}
+
+int field_crop_sell_cost(enum field_crop item) {
+    return field_crop_sell_cost_table[item];
+}
+
+enum item_type get_product_type_string(const char* string) {
+    if (strcasecmp(string, "none") == 0) {
+        return NONE_PRODUCT;
+    }
+
+    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
+        if (strcasecmp(string, field_crop_strings[i]) == 0) {
+            return get_product_type_field(i);
+        }
+    }
+
+    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+        if (strcasecmp(string, tree_crop_strings[i]) == 0) {
+            return get_product_type_tree(i);
+        }
+    }
+
+    return NONE_PRODUCT;
+}
+
+enum item_type get_product_type_field(const enum field_crop type) {
+    return field_crop_type[type];
+}
+
+enum item_type get_product_type_tree(const enum tree_crop type) {
+    return tree_crop_type[type];
 }
