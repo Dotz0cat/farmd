@@ -19,13 +19,15 @@ This file is part of farmd.
 
 #include "loop.h"
 
-#define X(a, b, c) [a]={c, 0}
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]={c, 0}
 const struct timeval field_time[] = {
     FIELD_CROP_TABLE
 };
 #undef X
 
-#define X(a, b, c) [a]={c, 0}
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]={c, 0}
 const struct timeval tree_time[] = {
     TREE_CROP_TABLE
 };
@@ -224,6 +226,26 @@ void loop_run(loop_context* context) {
 
     if (evhttp_set_cb(context->event_box->http_base, "/tree/status", tree_status_cb, context)) {
         syslog(LOG_WARNING, "failed to set /tree/status");
+        abort();
+    }
+
+    if (evhttp_set_cb(context->event_box->http_base, "/buy/item", buy_item_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/item");
+        abort();
+    }
+
+    if (evhttp_set_cb(context->event_box->http_base, "/sell/item", sell_item_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /sell/item");
+        abort();
+    }
+
+    if (evhttp_set_cb(context->event_box->http_base, "/buy/price", item_buy_price_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/price");
+        abort();
+    }
+
+    if (evhttp_set_cb(context->event_box->http_base, "/sell/price", item_sell_price_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /sell/price");
         abort();
     }
 
@@ -1012,6 +1034,7 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
     } while (list != NULL);
 
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 }
 
 static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
@@ -1049,42 +1072,82 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
     fields_list* list = context->field_list;
 
     do {
-        if (list->completion == 1) {
-            if (get_silo_allocation(context->db) < get_silo_max(context->db)) {
-                if (add_item_to_silo(context->db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                    //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+        if (list->completion == 1 && list->type != NONE_FIELD) {
+            enum storage storage_place = get_storage_type_field(list->type);
+
+            if (storage_place == SILO) {
+
+                if (get_silo_allocation(context->db) < (get_silo_max(context->db) - 1)) {
+                    if (add_item_to_silo(context->db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
+                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                    if (update_silo(context->db, field_crop_enum_to_string(list->type), 2) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+                else {
                     struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                    evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
                     return;
                 }
-                if (update_silo(context->db, field_crop_enum_to_string(list->type), 2) != 0) {
+            }
+            else if (storage_place == BARN) {
+
+                if (get_barn_allocation(context->db) < (get_barn_max(context->db) - 1)) {
+                    if (add_item_to_silo(context->db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
+                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                    if (update_barn(context->db, field_crop_enum_to_string(list->type), 2) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+                else {
                     struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                    evbuffer_add_printf(returnbuffer, "could not harvest field%d due to barn size\r\n", list->field_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
                     return;
                 }
-                list->type = NONE_FIELD;
-                list->completion = 0;
-                remove_field(context->db, list->field_number);
-                //reset the complete flag to false
-                set_field_completion(context->db, list->field_number, 0);
-                //clear the field time as it had now been harvested
-                clear_field_time(context->db, list->field_number);
-                update_meta(context->db, 2, "xp");
-                xp_check(context->db);
             }
             else {
                 struct evbuffer* returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_add_printf(returnbuffer, "could not harvest field%d due to not being implemented\r\n", list->field_number);
+                evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
                 return;
             }
-            
+
+            list->type = NONE_FIELD;
+            list->completion = 0;
+            remove_field(context->db, list->field_number);
+            //reset the complete flag to false
+            set_field_completion(context->db, list->field_number, 0);
+            //clear the field time as it had now been harvested
+            clear_field_time(context->db, list->field_number);
+            update_meta(context->db, 2, "xp");
+            xp_check(context->db);
         }
+
         list = list->next;
     } while (list != NULL);
 
@@ -1209,9 +1272,11 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
         free(post_arg);
     }
 
-    if (get_skill_status(context->db, field_crop_enum_to_string(type)) == 0) {
+    const char* sanitized_string = field_crop_enum_to_string(type);
+
+    if (get_skill_status(context->db, sanitized_string) == 0) {
         struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", field_crop_enum_to_string(type));
+        evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
@@ -1238,18 +1303,36 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
                     return;
                 }
             }
+
+            int price = field_crop_buy_cost(type);
+
+            enum storage store = get_storage_type_field(type);
+
             //consume crops or cash
-            if (silo_query(context->db, query) > 0) {
-                if (update_silo(context->db, query, -1) != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    return;
+            if (store == SILO) {
+                if (silo_query(context->db, sanitized_string) > 0) {
+                    if (update_silo(context->db, sanitized_string, -1) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
                 }
             }
-            else if (get_money(context->db) > 10) {
-                if (update_meta(context->db, -10, "Money") != 0) {
+            else if (store == BARN) {
+                if (barn_query(context->db, sanitized_string) > 0) {
+                    if (update_barn(context->db, sanitized_string, -1) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+            }
+            else if (get_money(context->db) > price) {
+                if (update_meta(context->db, (-1 * price), "Money") != 0) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not update money\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
@@ -1264,12 +1347,14 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
                 evbuffer_free(returnbuffer);
                 return;
             }
+
             list->type = type;
             set_field_type(context->db, list->field_number, field_crop_enum_to_string(type));
             //set field completion
             set_field_completion(context->db, list->field_number, 0);
             //set time it should complete
             set_field_time(context->db, list->field_number, field_time[type].tv_sec);
+
             const struct timeval* tv = &field_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
@@ -1571,7 +1656,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         query = post_arg;
     }
 
-    if (strcmp(query, "Fields") == 0) {
+    if (strcasecmp(query, "Fields") == 0) {
         //limit is 1 per level
         if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
             struct evbuffer* returnbuffer = evbuffer_new();
@@ -1584,7 +1669,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
             return;
         }
     }
-    else if (strcmp(query, "TreePlots") == 0) {
+    else if (strcasecmp(query, "TreePlots") == 0) {
         //limit is 1 per level
         if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
             struct evbuffer* returnbuffer = evbuffer_new();
@@ -1784,16 +1869,17 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
         free(post_arg);
     }
 
-    if (get_skill_status(context->db, tree_crop_enum_to_string(type)) == 0) {
+    const char* sanitized_string = tree_crop_enum_to_string(type);
+
+    if (get_skill_status(context->db, sanitized_string) == 0) {
         struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", tree_crop_enum_to_string(type));
+        evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
     //Plant tree plot
-
     trees_list* list = context->tree_list;
 
     int tree_plot = 0;
@@ -1822,18 +1908,35 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
 
             }
 
+            int price = tree_crop_buy_cost(type);
+
+            enum storage storage_place = get_storage_type_tree(type);
+
             //consume crops or cash
-            if (barn_query(context->db, query) > 0) {
-                if (update_barn(context->db, query, -1) != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    return;
+            if (storage_place == BARN) {
+                if (barn_query(context->db, sanitized_string) > 0) {
+                    if (update_barn(context->db, sanitized_string, -1) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
                 }
             }
-            else if (get_money(context->db) > 10) {
-                if (update_meta(context->db, -10, "Money") != 0) {
+            else if (storage_place == SILO) {
+                if (silo_query(context->db, sanitized_string) > 0) {
+                    if (update_silo(context->db, sanitized_string, -1) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+            }
+            else if (get_money(context->db) > price) {
+                if (update_meta(context->db, (-1 * price), "Money") != 0) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not update money\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
@@ -1850,7 +1953,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             }
 
             //add to trees table
-            set_tree_type(context->db, list->tree_number, tree_crop_enum_to_string(type));
+            set_tree_type(context->db, list->tree_number, sanitized_string);
             set_tree_completion(context->db, list->tree_number, 0);
 
             //set the completetion time
@@ -1930,51 +2033,88 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     trees_list* list = context->tree_list;
 
     do {
-        if (list->completion == 1) {
-            if (get_barn_allocation(context->db) < get_barn_max(context->db)) {
-                if (add_item_to_barn(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                    //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+        if (list->completion == 1 && list->type != NONE_TREE) {
+            enum storage storage_place = get_storage_type_tree(list->type);
+
+            if (storage_place == BARN) {
+                if (get_barn_allocation(context->db) < (get_barn_max(context->db)) - 1) {
+                    if (add_item_to_barn(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
+                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                    if (update_barn(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+                else {
                     struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                    evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
                     return;
                 }
-                if (update_barn(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
+            }
+            else if (storage_place == SILO) {
+                if (get_silo_allocation(context->db) < (get_silo_max(context->db)) - 1) {
+                    if (add_item_to_silo(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
+                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                    if (update_silo(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
+                        struct evbuffer* returnbuffer = evbuffer_new();
+                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        return;
+                    }
+                }
+                else {
                     struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "barn error\r\n");
+                    evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to silo size\r\n", list->tree_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
                     return;
                 }
-                list->completion = 0;
-
-                //update the db
-                set_tree_completion(context->db, list->tree_number, 0);
-                set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
-
-                const struct timeval* tv = &tree_time[list->type];
-                int rc = event_add(list->event, tv);
-                if (rc != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error adding tree event");
-                    return;
-                }
-
-                update_meta(context->db, 2, "xp");
-                xp_check(context->db);
             }
             else {
                 struct evbuffer* returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
+                evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
                 return;
             }
             
+            list->completion = 0;
+
+            //update the db
+            set_tree_completion(context->db, list->tree_number, 0);
+            set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
+
+            const struct timeval* tv = &tree_time[list->type];
+            int rc = event_add(list->event, tv);
+            if (rc != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error adding event\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error adding tree event");
+                return;
+            }
+
+            update_meta(context->db, 2, "xp");
+            xp_check(context->db);
         }
         list = list->next;
     } while (list != NULL);
@@ -2036,4 +2176,501 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     } while (list != NULL);
 
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void buy_item_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+
+    const char* query = evhttp_uri_get_query(uri);
+    char* post_arg = NULL;
+
+    if (query == NULL) {
+        //check for post parameters
+        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        size_t buffersize = evbuffer_get_length(inputbuffer);
+        buffersize++;
+        post_arg = malloc(buffersize);
+        if (post_arg == NULL) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "error\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        evbuffer_copyout(inputbuffer, post_arg, buffersize);
+        post_arg[buffersize - 1] = '\0';
+        //check if filled
+        if (strcmp(post_arg, "") == 0) {
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "no query\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        query = post_arg;
+    }
+
+    if (post_arg != NULL) {
+        free(post_arg);
+    }
+
+    enum item_type type =  get_product_type_string(query);
+
+    int item_price = 0;
+    enum storage storage_place;
+    const char* sanitized_string;
+
+    switch (type) {
+        case NONE_PRODUCT:
+            item_price = 0;
+            break;
+        case FIELD_PRODUCT: {
+            enum field_crop item = field_crop_string_to_enum(query);
+            item_price = field_crop_buy_cost(item);
+            storage_place = get_storage_type_field(item);
+            sanitized_string = field_crop_enum_to_string(item);
+            break;
+        }
+        case TREE_PRODUCT: {
+            enum tree_crop item = tree_crop_string_to_enum(query);
+            item_price = tree_crop_buy_cost(item);
+            storage_place = get_storage_type_tree(item);
+            sanitized_string = tree_crop_enum_to_string(item);
+            break;
+        }
+        case OTHER_PRODUCT:
+            //nop
+            item_price = 0;
+            break;
+        default:
+            item_price = 0;
+            break;
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+
+    if (item_price == 0) {
+        evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
+        evhttp_send_reply(req, HTTP_BADREQUEST, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //db work
+    //update money
+    if (get_money(context->db) > item_price) {
+        if (update_meta(context->db, (-1 * item_price), "Money")) {
+            evbuffer_add_printf(returnbuffer, "error updating money\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            syslog(LOG_WARNING, "error updating money");
+            return;
+        }
+    }
+    else {
+        evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    if (storage_place == BARN) {
+        //check allocation
+        if (get_barn_allocation(context->db) < get_barn_max(context->db)) {
+            //check if item is there
+            if (barn_query(context->db, sanitized_string) != -1) {
+                //remove item
+                if (update_barn(context->db, sanitized_string, 1) != 0) {
+                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                    evbuffer_free(returnbuffer);
+                    syslog(LOG_WARNING, "error updating barn");
+                    return;
+                }
+            }
+            else {
+                if (get_skill_status(context->db, sanitized_string) == 0) {
+                    if (add_item_to_barn(context->db, sanitized_string, LOCKED) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error adding item to barn");
+                        return;
+                    }
+                    if (update_barn(context->db, sanitized_string, 1) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error updating barn");
+                        return;
+                    }
+                }
+                else {
+                    if (add_item_to_barn(context->db, sanitized_string, UNLOCKED) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error adding item to barn");
+                        return;
+                    }
+                    if (update_barn(context->db, sanitized_string, 1) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error updating barn");
+                        return;
+                    }
+                }
+            }
+        }
+        else {
+            evbuffer_add_printf(returnbuffer, "error buying due to barn size\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (storage_place == SILO) {
+        //check allocation
+        if (get_silo_allocation(context->db) < get_silo_max(context->db)) {
+            //check if item is there
+            if (silo_query(context->db, sanitized_string) != -1) {
+                //add item
+                if (update_silo(context->db, sanitized_string, 1) != 0) {
+                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                    evbuffer_free(returnbuffer);
+                    syslog(LOG_WARNING, "error updating silo");
+                    return;
+                }
+            }
+            else {
+                if (get_skill_status(context->db, sanitized_string) == 0) {
+                    if (add_item_to_silo(context->db, sanitized_string, LOCKED) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error adding item to silo");
+                        return;
+                    }
+                    if (update_silo(context->db, sanitized_string, 1) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error updating silo");
+                        return;
+                    }
+                }
+                else {
+                    if (add_item_to_silo(context->db, sanitized_string, UNLOCKED) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error adding item to silo");
+                        return;
+                    }
+                    if (update_silo(context->db, sanitized_string, 1) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                        evbuffer_free(returnbuffer);
+                        syslog(LOG_WARNING, "error updating silo");
+                        return;
+                    }
+                }
+            }
+        }
+        else {
+            evbuffer_add_printf(returnbuffer, "error buying due to silo size\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", NULL);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    evbuffer_add_printf(returnbuffer, "sucessfully bought: %s\r\n", sanitized_string);
+
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void sell_item_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+
+    const char* query = evhttp_uri_get_query(uri);
+    char* post_arg = NULL;
+
+    if (query == NULL) {
+        //check for post parameters
+        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        size_t buffersize = evbuffer_get_length(inputbuffer);
+        buffersize++;
+        post_arg = malloc(buffersize);
+        if (post_arg == NULL) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "error\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        evbuffer_copyout(inputbuffer, post_arg, buffersize);
+        post_arg[buffersize - 1] = '\0';
+        //check if filled
+        if (strcmp(post_arg, "") == 0) {
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "no query\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        query = post_arg;
+    }
+
+    if (post_arg != NULL) {
+        free(post_arg);
+    }
+
+    enum item_type type =  get_product_type_string(query);
+
+    int item_price = 0;
+    enum storage storage_place;
+    const char* sanitized_string;
+
+    switch (type) {
+        case NONE_PRODUCT:
+            item_price = 0;
+            break;
+        case FIELD_PRODUCT: {
+            enum field_crop item = field_crop_string_to_enum(query);
+            item_price = field_crop_sell_cost(item);
+            storage_place = get_storage_type_field(item);
+            sanitized_string = field_crop_enum_to_string(item);
+            break;
+        }
+        case TREE_PRODUCT: {
+            enum tree_crop item = tree_crop_string_to_enum(query);
+            item_price = tree_crop_sell_cost(item);
+            storage_place = get_storage_type_tree(item);
+            sanitized_string = tree_crop_enum_to_string(item);
+            break;
+        }
+        case OTHER_PRODUCT:
+            //nop
+            item_price = 0;
+            break;
+        default:
+            item_price = 0;
+            break;
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+
+    if (item_price == 0) {
+        evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
+        evhttp_send_reply(req, HTTP_BADREQUEST, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //db work
+    if (storage_place == BARN) {
+        //check if item is there
+        if (barn_query(context->db, sanitized_string) > 0) {
+            //remove item
+            if (update_barn(context->db, sanitized_string, -1) != 0) {
+                evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error updating barn");
+                return;
+            }
+        }
+        else {
+            evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", sanitized_string);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (storage_place == SILO) {
+        //check if item is there
+        if (silo_query(context->db, sanitized_string) > 0) {
+            //remove item
+            if (update_silo(context->db, sanitized_string, -1) != 0) {
+                evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                syslog(LOG_WARNING, "error updating silo");
+                return;
+            }
+        }
+        else {
+            evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", sanitized_string);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", NULL);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //update money
+    if (update_meta(context->db, item_price, "Money")) {
+        evbuffer_add_printf(returnbuffer, "error updating money\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        syslog(LOG_WARNING, "error updating money");
+        return;
+    }
+
+    evbuffer_add_printf(returnbuffer, "sucessfully sold: %s for %d\r\n", sanitized_string, item_price);
+
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void item_buy_price_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+
+    const char* query = evhttp_uri_get_query(uri);
+
+    enum item_type type =  get_product_type_string(query);
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+
+    switch (type) {
+        case NONE_PRODUCT:
+            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
+            break;
+        case FIELD_PRODUCT: {
+            enum field_crop item = field_crop_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, field_crop_buy_cost(item));
+            break;
+        }
+        case TREE_PRODUCT: {
+            enum tree_crop item = tree_crop_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_buy_cost(item));
+            break;
+        }
+        case OTHER_PRODUCT:
+            //nop
+            evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
+            break;
+        default:
+            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
+            break;
+    }
+
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+
+    const char* query = evhttp_uri_get_query(uri);
+
+    enum item_type type =  get_product_type_string(query);
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+
+    switch (type) {
+        case NONE_PRODUCT:
+            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
+            break;
+        case FIELD_PRODUCT: {
+            enum field_crop item = field_crop_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, field_crop_sell_cost(item));
+            break;
+        }
+        case TREE_PRODUCT: {
+            enum tree_crop item = tree_crop_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_sell_cost(item));
+            break;
+        }
+        case OTHER_PRODUCT:
+            //nop
+            evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
+            break;
+        default:
+            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
+            break;
+    }
+
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 }
