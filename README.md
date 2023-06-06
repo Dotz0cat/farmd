@@ -26,7 +26,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 - [x] find a standard to document api and api quirks
 	- mostly the readme at this stage
 
-- [ ] https added
+- [x] https added
 
 - [ ] memory cleaned up
 

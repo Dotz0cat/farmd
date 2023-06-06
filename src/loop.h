@@ -30,8 +30,12 @@ This file is part of farmd.
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_ssl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include <openssl/ssl.h>
 
 #include "save.h"
 #include "list.h"
@@ -49,7 +53,9 @@ struct _events_box {
     struct event* signal_sigusr1;
     struct event* signal_sigusr2;
     struct evhttp* http_base;
-    struct evhttp_bound_socket* socket;
+    struct evhttp* https_base;
+    struct evhttp_bound_socket* http_socket;
+    struct evhttp_bound_socket* https_socket;
 };
 
 typedef struct _loop_context loop_context;
@@ -64,6 +70,8 @@ struct _loop_context {
     fields_list* field_list;
 
     trees_list* tree_list;
+
+    SSL_CTX* ssl_ctx;
 };
 
 //bespoke struct just so I can pass 2 pointers with one
@@ -75,10 +83,17 @@ struct box_for_list_and_db {
 
 void loop_run(loop_context* context);
 
+static void set_callbacks(struct evhttp* base, loop_context* context);
+
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data);
 static void sighup_cb(evutil_socket_t sig, short events, void* user_data);
 static void sigusr1_cb(evutil_socket_t sig, short events, void* user_data);
 static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data);
+
+struct evhttp_bound_socket* make_http_socket(loop_context* context);
+struct evhttp_bound_socket* make_https_socket(loop_context* context);
+
+static struct bufferevent* make_ssl_bufferevent(struct event_base* base, void* user_data);
 
 static void generic_http_cb(struct evhttp_request* req, void* arg);
 

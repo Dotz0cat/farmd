@@ -30,9 +30,19 @@ This file is part of farmd.
 typedef struct _config_settings config_settings;
 
 struct _config_settings {
-    int port;
+    int https_enable;
+
+    int https_only;
+
+    int https_port;
+
+    int http_port;
 
     char* save_location;
+
+    char* pub_key;
+
+    char* priv_key;
 };
 
 typedef struct _pre_init_stuff pre_init_stuff;

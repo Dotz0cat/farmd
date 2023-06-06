@@ -51,6 +51,11 @@ void loop_run(loop_context* context) {
     context->tree_list = NULL;
     context->field_list = NULL;
 
+    context->event_box->http_base = NULL;
+    context->event_box->https_base = NULL;
+
+    context->ssl_ctx = NULL;
+
     //set up basic signals
     context->event_box->signal_sigquit = evsignal_new(context->event_box->base, SIGQUIT, sig_int_quit_term_cb, (void*) context);
     if (!context->event_box->signal_sigquit || event_add(context->event_box->signal_sigquit, NULL) < 0) abort();
@@ -70,183 +75,45 @@ void loop_run(loop_context* context) {
     context->event_box->signal_sigusr2 = evsignal_new(context->event_box->base, SIGUSR2, sigusr2_cb, (void*) context);
     if (!context->event_box->signal_sigusr2 || event_add(context->event_box->signal_sigusr2, NULL) < 0) abort();
 
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (context->pre_init_info->settings->https_enable != 0) {
+        if ((context->event_box->https_socket = make_https_socket(context)) == NULL) {
+            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
+            abort();
+        }
 
-    if (sock < 0) {
-        syslog(LOG_WARNING, "failed to make socket");
-        abort();
+        //make http socket if http only is false
+        if (context->pre_init_info->settings->https_only == 0) {
+            if ((context->event_box->http_socket = make_http_socket(context)) == NULL) {
+                syslog(LOG_WARNING, "evhttp_accept_socket() failed");
+                abort();
+            }
+
+            set_callbacks(context->event_box->http_base, context);
+        }
+
+        context->ssl_ctx = SSL_CTX_new(TLS_server_method());
+
+        if (context->pre_init_info->settings->pub_key != NULL) {
+            SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
+        }
+
+        if (context->pre_init_info->settings->priv_key != NULL) {
+            SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
+        }
+
+        SSL_CTX_check_private_key(context->ssl_ctx);
+
+        evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
+
+        set_callbacks(context->event_box->https_base, context);
     }
+    else {
+        if ((context->event_box->http_socket = make_http_socket(context)) == NULL) {
+            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
+            abort();
+        }
 
-    int reuseaddr_opt_val = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
-
-    if (evutil_make_socket_nonblocking(sock) < 0) {
-        syslog(LOG_WARNING, "failed to make socket nonblocking");
-        abort();
-    }
-
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = 0;
-    //get port set in config
-    sin.sin_port = htons(context->pre_init_info->settings->port);
-    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
-        syslog(LOG_WARNING, "failed to bind socket");
-        abort();
-    }
-
-    if (listen(sock, 8) < 0) {
-        syslog(LOG_WARNING, "listen() failed");
-        abort();
-    }
-
-    context->event_box->http_base = evhttp_new(context->event_box->base);
-
-    if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
-        syslog(LOG_WARNING, "evhttp_accept_socket() failed");
-        abort();
-    }
-
-    evhttp_set_gencb(context->event_box->http_base, generic_http_cb, context);
-
-    if (evhttp_set_cb(context->event_box->http_base, "/barnQuery", barn_query_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /barnQuery");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/siloQuery", silo_query_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /siloQuery");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/createSave", create_save_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /createSave");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/openSave", open_save_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /openSave");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/closeSave", close_save_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /closeSave");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/barnAllocation", get_barn_allocation_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /barnAllocation");
-        abort();
-    }
-    
-    if (evhttp_set_cb(context->event_box->http_base, "/siloAllocation", get_silo_allocation_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /siloAllocation");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/getMoney", get_money_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /getMoney");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/getLevel", get_level_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /getLevel");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/getXp", get_xp_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /getXp");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/getSkillPoints", get_skill_points_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /getSkillPoints");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/getSkillStatus", get_skill_status_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /getSkillStatus");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/field/plant", plant_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /field/plant");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/field/harvest", fields_harvest_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /field/harvest");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/field/status", fields_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /field/status");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/field/buy", buy_field_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /field/buy");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/buy/field", buy_field_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /buy/field");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/tree/buy", buy_tree_plot_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /tree/buy");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/buy/tree", buy_tree_plot_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /buy/tree");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/buy/skill", buy_skill_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /buy/skill");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/skill/buy", buy_skill_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /skill/buy");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/tree/plant", plant_tree_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /tree/plant");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/tree/harvest", tree_harvest_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /tree/harvest");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/tree/status", tree_status_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /tree/status");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/buy/item", buy_item_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /buy/item");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/sell/item", sell_item_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /sell/item");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/buy/price", item_buy_price_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /buy/price");
-        abort();
-    }
-
-    if (evhttp_set_cb(context->event_box->http_base, "/sell/price", item_sell_price_cb, context)) {
-        syslog(LOG_WARNING, "failed to set /sell/price");
-        abort();
+        set_callbacks(context->event_box->http_base, context);
     }
 
     if (context->pre_init_info->save != NULL) {
@@ -285,13 +152,165 @@ void loop_run(loop_context* context) {
     event_free(context->event_box->signal_sigusr1);
     event_free(context->event_box->signal_sigusr2);
 
-    evhttp_free(context->event_box->http_base);
+    if (context->event_box->http_base != NULL) {
+        evhttp_free(context->event_box->http_base);
+    }
+    if (context->event_box->https_base != NULL) {
+        evhttp_free(context->event_box->https_base);
+    }
 
     event_base_free(context->event_box->base);
 
     free(context->event_box);
+    if (context->ssl_ctx != NULL) {
+        SSL_CTX_free(context->ssl_ctx);
+    }
 
     return;
+}
+
+static void set_callbacks(struct evhttp* base, loop_context* context) {
+    evhttp_set_gencb(base, generic_http_cb, context);
+
+    if (evhttp_set_cb(base, "/barnQuery", barn_query_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barnQuery");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/siloQuery", silo_query_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /siloQuery");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/createSave", create_save_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /createSave");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/openSave", open_save_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /openSave");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/closeSave", close_save_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /closeSave");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/barnAllocation", get_barn_allocation_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barnAllocation");
+        abort();
+    }
+    
+    if (evhttp_set_cb(base, "/siloAllocation", get_silo_allocation_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /siloAllocation");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getMoney", get_money_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getMoney");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getLevel", get_level_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getLevel");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getXp", get_xp_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getXp");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getSkillPoints", get_skill_points_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getSkillPoints");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getSkillStatus", get_skill_status_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getSkillStatus");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/field/plant", plant_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /field/plant");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/field/harvest", fields_harvest_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /field/harvest");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/field/status", fields_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /field/status");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/field/buy", buy_field_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /field/buy");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/buy/field", buy_field_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/field");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/tree/buy", buy_tree_plot_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /tree/buy");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/buy/tree", buy_tree_plot_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/tree");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/buy/skill", buy_skill_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/skill");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/skill/buy", buy_skill_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /skill/buy");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/tree/plant", plant_tree_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /tree/plant");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/tree/harvest", tree_harvest_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /tree/harvest");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/tree/status", tree_status_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /tree/status");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/buy/item", buy_item_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/item");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/sell/item", sell_item_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /sell/item");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/buy/price", item_buy_price_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /buy/price");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/sell/price", item_sell_price_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /sell/price");
+        abort();
+    }
 }
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data) {
@@ -305,50 +324,22 @@ static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_d
 static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
     loop_context* context = user_data;
 
+    //cache port
+
+    int http_port = context->pre_init_info->settings->http_port;
+
     //reload config
     free_config_settings(context->pre_init_info->settings);
 
     context->pre_init_info->settings = config_parse(context->pre_init_info->config, context->pre_init_info->home, context->pre_init_info->xdg_config_home);
 
-    //reload socket
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    //reload socket if the port has changed
+    if (http_port != context->pre_init_info->settings->http_port) {
+        struct evhttp_bound_socket* socket = make_http_socket(context);
 
-    if (sock  < 0) {
-        syslog(LOG_WARNING, "failed to make socket");
-        abort();
-    }
+        evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
 
-    int reuseaddr_opt_val = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
-
-    if (evutil_make_socket_nonblocking(sock) < 0) {
-        syslog(LOG_WARNING, "failed to make socket nonblocking");
-        abort();
-    }
-
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = 0;
-    //get port set in config
-    sin.sin_port = htons(context->pre_init_info->settings->port);
-    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
-        if (errno != EADDRINUSE) {
-            syslog(LOG_WARNING, "failed to bind socket");
-            abort();
-        }
-    }
-    if (errno != 0) {
-        if (listen(sock, 8) < 0) {
-            syslog(LOG_WARNING, "listen() failed");
-            abort();
-        }
-        
-        if ((context->event_box->socket = evhttp_accept_socket_with_handle(context->event_box->http_base, sock)) == NULL) {
-            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
-            abort();
-        }
-
-        evhttp_del_accept_socket(context->event_box->http_base, context->event_box->socket);
+        context->event_box->http_socket = socket;
     }
 
     //save handling
@@ -369,6 +360,100 @@ static void sigusr1_cb(evutil_socket_t sig, short events, void* user_data) {
 
 static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data) {
     return;
+}
+
+struct evhttp_bound_socket* make_http_socket(loop_context* context) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sock < 0) {
+        syslog(LOG_WARNING, "failed to make socket");
+        abort();
+    }
+
+    int reuseaddr_opt_val = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
+
+    if (evutil_make_socket_nonblocking(sock) < 0) {
+        syslog(LOG_WARNING, "failed to make socket nonblocking");
+        abort();
+    }
+
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = 0;
+    //get port set in config
+    sin.sin_port = htons(context->pre_init_info->settings->http_port);
+    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+        syslog(LOG_WARNING, "failed to bind socket");
+        abort();
+    }
+
+    if (listen(sock, 8) < 0) {
+        syslog(LOG_WARNING, "listen() failed");
+        abort();
+    }
+
+    if (context->event_box->http_base == NULL) {
+        context->event_box->http_base = evhttp_new(context->event_box->base);
+        if (!context->event_box->http_base) {
+            syslog(LOG_WARNING, "failed to make evhttp base");
+            abort();
+        }
+    }
+
+    return evhttp_accept_socket_with_handle(context->event_box->http_base, sock);
+}
+
+struct evhttp_bound_socket* make_https_socket(loop_context* context) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sock < 0) {
+        syslog(LOG_WARNING, "failed to make socket");
+        abort();
+    }
+
+    int reuseaddr_opt_val = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
+
+    if (evutil_make_socket_nonblocking(sock) < 0) {
+        syslog(LOG_WARNING, "failed to make socket nonblocking");
+        abort();
+    }
+
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = 0;
+    //get port set in config
+    sin.sin_port = htons(context->pre_init_info->settings->https_port);
+    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+        syslog(LOG_WARNING, "failed to bind socket");
+        abort();
+    }
+
+    if (listen(sock, 8) < 0) {
+        syslog(LOG_WARNING, "listen() failed");
+        abort();
+    }
+
+    if (context->event_box->https_base == NULL) {
+        context->event_box->https_base = evhttp_new(context->event_box->base);
+        if (!context->event_box->https_base) {
+            syslog(LOG_WARNING, "failed to make evhttp base");
+            abort();
+        }
+    }
+
+    return evhttp_accept_socket_with_handle(context->event_box->https_base, sock);
+}
+
+static struct bufferevent* make_ssl_bufferevent(struct event_base* base, void* user_data) {
+    loop_context* context = user_data;
+
+    struct evhttp_bound_socket* sock = context->event_box->https_socket;
+
+    SSL* ssl = SSL_new(context->ssl_ctx);
+
+    return bufferevent_openssl_socket_new(base, evhttp_bound_socket_get_fd(sock), ssl, BUFFEREVENT_SSL_ACCEPTING, 0);
 }
 
 static void generic_http_cb(struct evhttp_request* req, void* arg) {
