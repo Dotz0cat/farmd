@@ -178,5 +178,11 @@ static pre_init_stuff* pre_init(char* config, char* save) {
 
     info->settings = config_parse(info->config, info->home, info->xdg_config_home);
 
+    if (info->settings == NULL) {
+        //config parsing failed
+        fprintf(stderr, "config parsing failed\r\n");
+        abort();
+    }
+
     return info;
 }

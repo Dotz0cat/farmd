@@ -22,7 +22,12 @@ This file is part of farmd.
 config_settings* config_parse(const char* config_location, const char* homedir, const char* xdg_config_home) {
     config_settings* settings = malloc(sizeof(config_settings));
 
-    int port;
+    int http_port;
+    int https_port;
+    int https_enable;
+    int https_only;
+    const char* pub_key_location;
+    const char* priv_key_location;
     const char* save_location;
 
     if (file_exsits(config_location) != 0) {
@@ -91,8 +96,57 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
         return NULL;
     }
 
-    if (config_lookup_int(&cfg, "port", &port)) {
-        settings->port = port;
+    if (config_lookup_bool(&cfg, "enable_https", &https_enable)) {
+        settings->https_enable = https_enable;
+    }
+    else {
+        settings->https_enable = 0;
+    }
+
+    if (https_enable == CONFIG_TRUE) {
+        if (config_lookup_bool(&cfg, "https_only", &https_only)) {
+            settings->https_only = https_only;
+        }
+        else {
+            settings->https_only = CONFIG_FALSE;
+        }
+
+        if (config_lookup_int(&cfg, "https_port", &https_port)) {
+            settings->https_port = https_port;
+        }
+        else {
+            //something failed with the port
+            //so set it manually or it won't work
+            settings->https_port = 8443;
+        }
+
+        if (config_lookup_string(&cfg, "key_location", &pub_key_location)) {
+            settings->pub_key = strdup(pub_key_location);
+        }
+        else {
+            settings->pub_key = NULL;
+        }
+
+        if (config_lookup_string(&cfg, "priv_key_location", &priv_key_location)) {
+            settings->priv_key = strdup(priv_key_location);
+        }
+        else {
+            settings->priv_key = NULL;
+        }
+    }
+    else {
+        settings->https_only = 0;
+        settings->pub_key = NULL;
+        settings->priv_key = NULL;
+    }
+
+    if (settings->https_only == CONFIG_FALSE) {
+        if (config_lookup_int(&cfg, "http_port", &http_port)) {
+            settings->http_port = http_port;
+        }
+        else {
+            settings->http_port = 8080;
+        }
     }
 
     if (config_lookup_string(&cfg, "save_location", &save_location)) {
@@ -143,6 +197,11 @@ static void make_default_config(const char* output_file) {
 
     root = config_root_setting(&cfg);
 
+    config_setting_t* https_enable;
+
+    https_enable = config_setting_add(root, "enable_https", CONFIG_TYPE_BOOL);
+    config_setting_set_bool(https_enable, CONFIG_FALSE);
+
     config_setting_t* port;
 
     port = config_setting_add(root, "port", CONFIG_TYPE_INT);
@@ -186,6 +245,14 @@ void free_config_settings(config_settings* settings) {
     if (settings != NULL) {
         if (settings->save_location != NULL) {
             free(settings->save_location);
+        }
+
+        if (settings->pub_key != NULL) {
+            free(settings->pub_key);
+        }
+
+        if (settings->priv_key != NULL) {
+            free(settings->priv_key);
         }
 
         free(settings);
