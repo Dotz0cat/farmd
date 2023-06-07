@@ -315,20 +315,20 @@ enum item_status check_barn_item_status(sqlite3* db, const char* item) {
 
     status_string = sqlite3_column_text(stmt, 0);
 
-    sqlite3_finalize(stmt);
-
-    if (sqlite3_stricmp( (char*) status_string, "UNLOCKED")) {
+    if (sqlite3_stricmp( (char*) status_string, "UNLOCKED") == 0) {
         status = UNLOCKED;
     }
-    else if (sqlite3_stricmp( (char*) status_string, "LOCKED")) {
+    else if (sqlite3_stricmp( (char*) status_string, "LOCKED") == 0) {
         status = LOCKED;
     }
-    else if (sqlite3_stricmp( (char*) status_string, "SPECIAL")) {
+    else if (sqlite3_stricmp( (char*) status_string, "SPECIAL") == 0) {
         status = SPECIAL;
     }
     else {
         status = -1;
     }
+
+    sqlite3_finalize(stmt);
 
     return status;
 }
@@ -365,20 +365,20 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item) {
 
     status_string = sqlite3_column_text(stmt, 0);
 
-    sqlite3_finalize(stmt);
-
-    if (sqlite3_stricmp( (char*) status_string, "UNLOCKED")) {
+    if (sqlite3_stricmp( (char*) status_string, "UNLOCKED") == 0) {
         status = UNLOCKED;
     }
-    else if (sqlite3_stricmp( (char*) status_string, "LOCKED")) {
+    else if (sqlite3_stricmp( (char*) status_string, "LOCKED") == 0) {
         status = LOCKED;
     }
-    else if (sqlite3_stricmp( (char*) status_string, "SPECIAL")) {
+    else if (sqlite3_stricmp( (char*) status_string, "SPECIAL") == 0) {
         status = SPECIAL;
     }
     else {
         status = -1;
     }
+
+    sqlite3_finalize(stmt);
 
     return status;
 }
@@ -1189,7 +1189,7 @@ const char* get_tree_type(sqlite3* db, const int tree_number) {
 int set_tree_time(sqlite3* db, const int index, const time_t time) {
     sqlite3_stmt* stmt;
 
-    char* sql = "UPDATE Trees SET Time = UNIXEPOCH() + ? WHERE FieldIndex == ?;";
+    char* sql = "UPDATE Trees SET Time = UNIXEPOCH() + ? WHERE TreeIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -1222,7 +1222,7 @@ time_t get_tree_time(sqlite3* db, const int index) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Time FROM Trees WHERE FieldIndex == ?;";
+    char* sql = "SELECT Time FROM Trees WHERE TreeIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -1256,7 +1256,7 @@ time_t get_tree_time(sqlite3* db, const int index) {
 int clear_tree_time(sqlite3* db, const int index) {
     sqlite3_stmt* stmt;
 
-    char* sql = "UPDATE Trees SET Time = NULL WHERE FieldIndex == ?;";
+    char* sql = "UPDATE Trees SET Time = NULL WHERE TreeIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -1286,7 +1286,7 @@ int clear_tree_time(sqlite3* db, const int index) {
 int set_tree_completion(sqlite3* db, const int index, const int completion) {
     sqlite3_stmt* stmt;
 
-    char* sql = "UPDATE Trees SET Completion = ? WHERE FieldIndex == ?;";
+    char* sql = "UPDATE Trees SET Completion = ? WHERE TreeIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -1319,7 +1319,7 @@ int get_tree_completion(sqlite3* db, const int index) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Completion FROM Trees WHERE FieldIndex == ?;";
+    char* sql = "SELECT Completion FROM Trees WHERE TreeIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 

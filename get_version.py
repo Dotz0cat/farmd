@@ -15,7 +15,7 @@ def main():
 	                			encoding="UTF-8")
 		version = version.strip()
 	else:
-		version = 'prealpha'
+		version = 'alpha'
 	print(version)
 
 if __name__ == "__main__":

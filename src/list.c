@@ -1,5 +1,5 @@
 /*
-Copyright 2022 Dotz0cat
+Copyright 2022-2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -163,7 +163,7 @@ int amend_fields_list(fields_list* head, int new_number) {
 
     list = wind_fields_to_tail(list);
 
-    for (int i = old_number - 1; i < new_number; i++) {
+    for (int i = old_number; i < new_number; i++) {
         add_field_to_list(list, i);
     }
 
@@ -190,7 +190,7 @@ const char* field_crop_enum_to_string(const enum field_crop type) {
 }
 
 enum field_crop field_crop_string_to_enum(const char* type) {
-    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
         if (strcasecmp(type, field_crop_strings[i]) == 0) {
             return i;
         }
@@ -270,7 +270,7 @@ int amend_trees_list(trees_list* head, const int new_number) {
 
     list = wind_trees_to_tail(list);
 
-    for (int i = old_number - 1; i < new_number; i++) {
+    for (int i = old_number; i < new_number; i++) {
         list = add_tree_to_list(list, i);
     }
 
@@ -298,7 +298,7 @@ const char* tree_crop_enum_to_string(const enum tree_crop type) {
 }
 
 enum tree_crop tree_crop_string_to_enum(const char* type) {
-    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
         if (strcasecmp(type, tree_crop_strings[i]) == 0) {
             return i;
         }
@@ -312,13 +312,13 @@ enum storage get_storage_type_string(const char* string) {
         return NONE_STORAGE;
     }
 
-    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
         if (strcasecmp(string, field_crop_strings[i]) == 0) {
             return get_storage_type_field(i);
         }
     }
 
-    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
         if (strcasecmp(string, tree_crop_strings[i]) == 0) {
             return get_storage_type_tree(i);
         }
@@ -356,13 +356,13 @@ enum item_type get_product_type_string(const char* string) {
         return NONE_PRODUCT;
     }
 
-    for (int i = 0; i < (int) sizeof(field_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
         if (strcasecmp(string, field_crop_strings[i]) == 0) {
             return get_product_type_field(i);
         }
     }
 
-    for (int i = 0; i < (int) sizeof(tree_crop_strings); i++) {
+    for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
         if (strcasecmp(string, tree_crop_strings[i]) == 0) {
             return get_product_type_tree(i);
         }

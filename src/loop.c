@@ -184,6 +184,16 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
         abort();
     }
 
+    if (evhttp_set_cb(base, "/barn/query", barn_query_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barn/query");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/silo/query", silo_query_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /silo/query");
+        abort();
+    }
+
     if (evhttp_set_cb(base, "/createSave", create_save_cb, context)) {
         syslog(LOG_WARNING, "failed to set /createSave");
         abort();
@@ -209,6 +219,16 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
         abort();
     }
 
+    if (evhttp_set_cb(base, "/barn/allocation", get_barn_allocation_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barn/allocation");
+        abort();
+    }
+    
+    if (evhttp_set_cb(base, "/silo/allocation", get_silo_allocation_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /silo/allocation");
+        abort();
+    }
+
     if (evhttp_set_cb(base, "/getMoney", get_money_cb, context)) {
         syslog(LOG_WARNING, "failed to set /getMoney");
         abort();
@@ -231,6 +251,31 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
 
     if (evhttp_set_cb(base, "/getSkillStatus", get_skill_status_cb, context)) {
         syslog(LOG_WARNING, "failed to set /getSkillStatus");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/version", get_version_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /version");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getBarnMax", get_barn_max_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getBarnMax");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/getSiloMax", get_silo_max_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /getSiloMax");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/barn/max", get_barn_max_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barn/max");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/silo/max", get_silo_max_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /silo/max");
         abort();
     }
 
@@ -365,33 +410,6 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
                 context->event_box->https_socket = socket;
             }
 
-            if (https_only != context->pre_init_info->settings->https_only) {
-                //something is diffrent now
-                if (context->pre_init_info->settings->https_only != 0) {
-                    //remove http base
-                    if (context->event_box->http_base != NULL) {
-                        evhttp_free(context->event_box->http_base);
-                        context->event_box->http_base = NULL;
-                    }
-                }
-                else {
-                    //make a http base and registar callbacks
-                    context->event_box->http_socket = make_http_socket(context);
-
-                    set_callbacks(context->event_box->http_base, context);
-                }
-            }
-            else {
-                //reload socket if the port has changed
-                if (http_port != context->pre_init_info->settings->http_port) {
-                    struct evhttp_bound_socket* socket = make_http_socket(context);
-
-                    evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
-
-                    context->event_box->http_socket = socket;
-                }
-            }
-
             if (pub_key != NULL && context->pre_init_info->settings->pub_key != NULL) {
                 if (strcmp(pub_key, context->pre_init_info->settings->pub_key) != 0) {
                     // if they are not equal and not null set
@@ -417,7 +435,6 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
             if (SSL_CTX_check_private_key(context->ssl_ctx)) {
                 syslog(LOG_WARNING, "ssl private key does not match");
             }
-            
         }
         else {
             //make the socket
@@ -443,15 +460,47 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
 
             set_callbacks(context->event_box->https_base, context);
         }
+
+        if (https_only == 0 && context->pre_init_info->settings->https_only == 0) {
+            //reload socket if the port has changed
+            if (http_port != context->pre_init_info->settings->http_port) {
+                struct evhttp_bound_socket* socket = make_http_socket(context);
+
+                evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+
+                context->event_box->http_socket = socket;
+            }
+        }
+        else if (https_only != 0 && context->pre_init_info->settings->https_only == 0) {
+            //make a http base and registar callbacks
+            context->event_box->http_socket = make_http_socket(context);
+
+            set_callbacks(context->event_box->http_base, context);
+        }
+        else if (https_only == 0 && context->pre_init_info->settings->https_only != 0) {
+            //remove http base
+            if (context->event_box->http_base != NULL) {
+                evhttp_free(context->event_box->http_base);
+                context->event_box->http_base = NULL;
+            }
+        }
     }
     else {
-        //reload socket if the port has changed
-        if (http_port != context->pre_init_info->settings->http_port) {
-            struct evhttp_bound_socket* socket = make_http_socket(context);
+        if (https_only != 0) {
+            //it was https only now its http only due to https being disabled
+            context->event_box->http_socket = make_http_socket(context);
 
-            evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+            set_callbacks(context->event_box->http_base, context);
+        }
+        else {
+            //reload socket if the port has changed
+            if (http_port != context->pre_init_info->settings->http_port) {
+                struct evhttp_bound_socket* socket = make_http_socket(context);
 
-            context->event_box->http_socket = socket;
+                evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+
+                context->event_box->http_socket = socket;
+            }
         }
 
         if (https_enable != 0) {
@@ -623,9 +672,6 @@ static void barn_query_cb(struct evhttp_request* req, void* arg) {
     evbuffer_add_printf(returnbuffer, "%s: %i\r\n", query, items);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-
-    //evhttp_uri_free(uri_struct);
-
 }
 
 static void silo_query_cb(struct evhttp_request* req, void* arg) {
@@ -957,7 +1003,7 @@ static int create_save(const char* file_name, loop_context* context) {
         return 1;
     }
 
-    rc = open_save(file_name, context);
+    rc = open_save_db(file_name, &context->db);
     if (rc != 0) {
         return 2;
     }
@@ -998,17 +1044,19 @@ static int close_save(loop_context* context) {
     //free trees
     if (context->tree_list != NULL) {
         trees_list* tree_list = context->tree_list;
-        while (tree_list->event != NULL) {
-            event_del(tree_list->event);
+        while (tree_list != NULL) {
+            if (tree_list->event != NULL) {
+                event_del(tree_list->event);
                 void* temp;
                 if ((temp = event_get_callback_arg(tree_list->event)) != NULL) {
                     free(temp);
                 }
-            event_free(tree_list->event);
+                event_free(tree_list->event);
+            }
+            trees_list* temp = tree_list;
+            tree_list = tree_list->next;
+            free(temp);
         }
-        trees_list* temp = tree_list;
-        tree_list = tree_list->next;
-        free(temp);
     }
 
     return 0;
@@ -1190,10 +1238,81 @@ static void get_skill_status_cb(struct evhttp_request* req, void* arg) {
 
     const char* query = evhttp_uri_get_query(uri_struct);
 
-    int skill_status = get_skill_status(context->db, query);
+    const char* sanitized_string = skill_sanitize(query);
+
+    if (sanitized_string == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "Skill %s: is not valid\r\n", query);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+    }
+
+    int skill_status = get_skill_status(context->db, sanitized_string);
 
     struct evbuffer* returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "Skill status: %s %d\r\n", query, skill_status);
+    evbuffer_add_printf(returnbuffer, "Skill status: %s %d\r\n", sanitized_string, skill_status);
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void get_version_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "farmd version: %s\r\n", VERSION);
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void get_barn_max_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int max = get_barn_max(context->db);
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "Barn max: %d\r\n", max);
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
+static void get_silo_max_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int max = get_silo_max(context->db);
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "Silo max: %d\r\n", max);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
@@ -1875,35 +1994,11 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         query = post_arg;
     }
 
-    if (strcasecmp(query, "Fields") == 0) {
-        //limit is 1 per level
-        if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
-            struct evbuffer* returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", query);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            return;
-        }
-    }
-    else if (strcasecmp(query, "TreePlots") == 0) {
-        //limit is 1 per level
-        if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
-            struct evbuffer* returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", query);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            return;
-        }
-    }
-    else if (get_skill_status(context->db, query) > 0) {
+    const char* sanitized_string;
+
+    if ((sanitized_string = skill_sanitize(query)) == NULL) {
         struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "already own skill: %s\r\n", query);
+        evbuffer_add_printf(returnbuffer, "failed to buy %s: not valid\r\n", query);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         if (post_arg != NULL) {
@@ -1912,14 +2007,51 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         return;
     }
 
-    //hash table here for depenacny checking
-    const char* reason = skill_dep_check(context->db, query);
+    if (strcasecmp(sanitized_string, "Fields") == 0) {
+        //limit is 1 per level
+        if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            return;
+        }
+    }
+    else if (strcasecmp(sanitized_string, "TreePlots") == 0) {
+        //limit is 1 per level
+        if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            if (post_arg != NULL) {
+                free(post_arg);
+            }
+            return;
+        }
+    }
+    else if (get_skill_status(context->db, sanitized_string) > 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "already own skill: %s\r\n", sanitized_string);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        if (post_arg != NULL) {
+            free(post_arg);
+        }
+        return;
+    }
+
+    //depenacny checking
+    const char* reason = skill_dep_check(context->db, sanitized_string);
     if (reason != NULL) {
         if (post_arg != NULL) {
             free(post_arg);
         }
         struct evbuffer* returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "%s\r\n", reason);
+        evbuffer_add_printf(returnbuffer, "dependency needed: %s\r\n", reason);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
@@ -1937,7 +2069,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         return;
     }
     if (update_meta(context->db, -1, "SkillPoints") == 0) {
-        if (update_skill_tree(context->db, query) != 0) {
+        if (update_skill_tree(context->db, sanitized_string) != 0) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
@@ -1959,8 +2091,33 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         return; 
     }
 
+    //unlock the item in storage
+    enum storage store = get_storage_type_string(sanitized_string);
+    if (store == SILO) {
+        if (check_silo_item_status(context->db, sanitized_string) == LOCKED) {
+            if (update_silo_status(context->db, sanitized_string, UNLOCKED) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                return;
+            }
+        }
+    }
+    else if (store == BARN) {
+        if (check_barn_item_status(context->db, sanitized_string) == LOCKED) {
+            if (update_barn_status(context->db, sanitized_string, UNLOCKED) != 0) {
+                struct evbuffer* returnbuffer = evbuffer_new();
+                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
+                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                evbuffer_free(returnbuffer);
+                return;
+            }
+        }
+    }
+
     struct evbuffer* returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "sucessfully bought skill: %s\r\n", query);
+    evbuffer_add_printf(returnbuffer, "sucessfully bought skill: %s\r\n", sanitized_string);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
     if (post_arg != NULL) {
@@ -2104,7 +2261,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     int tree_plot = 0;
 
     //so only one tree can be planted at a time
-    int done;
+    int done = 0;
 
     do {
         if (list->type == NONE_TREE) {
@@ -2199,6 +2356,14 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
        list = list->next;
 
     } while(list != NULL && done == 0);
+
+    if (done == 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no open tree plot\r\n");
+        evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
 
     struct evbuffer* returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "planted tree plot: %d\r\n", tree_plot);
@@ -2322,6 +2487,21 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
             set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
 
             const struct timeval* tv = &tree_time[list->type];
+            if (list->event == NULL) {
+                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                box->list = list;
+                box->db = context->db;
+
+                list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
+                if (list->event == NULL) {
+                    struct evbuffer* returnbuffer = evbuffer_new();
+                    evbuffer_add_printf(returnbuffer, "error making event\r\n");
+                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                    evbuffer_free(returnbuffer);
+                    syslog(LOG_WARNING, "error making event for trees");
+                    return;
+                }
+            }
             int rc = event_add(list->event, tv);
             if (rc != 0) {
                 struct evbuffer* returnbuffer = evbuffer_new();

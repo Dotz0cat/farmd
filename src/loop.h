@@ -116,6 +116,10 @@ static void get_level_cb(struct evhttp_request* req, void* arg);
 static void get_xp_cb(struct evhttp_request* req, void* arg);
 static void get_skill_points_cb(struct evhttp_request* req, void* arg);
 static void get_skill_status_cb(struct evhttp_request* req, void* arg);
+static void get_version_cb(struct evhttp_request* req, void* arg);
+
+static void get_barn_max_cb(struct evhttp_request* req, void* arg);
+static void get_silo_max_cb(struct evhttp_request* req, void* arg);
 
 static void fields_cb(struct evhttp_request* req, void* arg);
 static void fields_harvest_cb(struct evhttp_request* req, void* arg);

@@ -28,7 +28,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 - [x] https added
 
-- [ ] memory cleaned up
+- [x] memory cleaned up
 
 ## Steps for beta
 
@@ -57,6 +57,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 		- [ ] get_storage_type_string
 		- [ ] field_crop_string_to_enum
 		- [ ] tree_crop_string_to_enum
+		- [ ] skill_dep_check
 
 - [ ] special item system
 
@@ -80,9 +81,11 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 ## API documentation
 
-It will run at localhost port 8080. (port will be configurable)
+It will run at over http on localhost port 8080. (port will be configurable)
+And over https over localhost port 8443 (when enabled and given correct keys)
 
 - /barnQuery
+- /barn/query
 	- Query the barn for an item
 	- Uses http GET
 	- Item passed as query
@@ -90,6 +93,7 @@ It will run at localhost port 8080. (port will be configurable)
 		- `$ curl http://localhost:8080/barnQuery?apples -X GET`
 
 - /siloQuery
+- /silo/query
 	- Query the silo for an item
 	- Uses http GET
 	- Item passed as query
@@ -117,12 +121,14 @@ It will run at localhost port 8080. (port will be configurable)
 		- `$ curl http://localhost:8080/closeSave -X POST`
 
 - /barnAllocation
+- /barn/allocation
 	- Gives the current allocation of the barn in percent round to 2 decimals
 	- Uses http GET
 	- example
 		- `$ curl http://localhost:8080/barnAllocation -X GET`
 
 - /siloAllocation
+- /silo/allocation
 	- Gives the current allocation of the silo in percent round to 2 decimals
 	- Uses http GET
 	- example
@@ -158,6 +164,26 @@ It will run at localhost port 8080. (port will be configurable)
 	- Takes skill name as query
 	- example
 		- `$ curl http://localhost:8080/getSkillStatus?Farming -X GET`
+
+- /version
+	- Shows the current version of farmd
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/version -X GET`
+
+- /getBarnMax
+- /barn/max
+	- Gets the max compacity of the barn
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/barn/max -X GET`
+
+- /getSiloMax
+- /silo/max
+	- Gets the max compacity of the silo
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/silo/max -X GET`
 
 - /field/plant
 	- Plant all the fields with sent crop
