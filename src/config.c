@@ -136,6 +136,8 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
     }
     else {
         settings->https_only = 0;
+        settings->pub_key = NULL;
+        settings->priv_key = NULL;
     }
 
     if (settings->https_only == CONFIG_FALSE) {

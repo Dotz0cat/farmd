@@ -101,7 +101,9 @@ void loop_run(loop_context* context) {
             SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
         }
 
-        SSL_CTX_check_private_key(context->ssl_ctx);
+        if (SSL_CTX_check_private_key(context->ssl_ctx)) {
+            syslog(LOG_WARNING, "ssl private key does not match");
+        }
 
         evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
 
@@ -327,19 +329,139 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
     //cache port
 
     int http_port = context->pre_init_info->settings->http_port;
+    int https_port = context->pre_init_info->settings->https_port;
+    int https_only = context->pre_init_info->settings->https_only;
+    int https_enable = context->pre_init_info->settings->https_enable;
+    char* pub_key;
+    if (context->pre_init_info->settings->pub_key != NULL) {
+        pub_key  = strdup(context->pre_init_info->settings->pub_key);
+    }
+    else {
+        pub_key = NULL;
+    }
+
+    char* priv_key;
+    if (context->pre_init_info->settings->priv_key != NULL) {
+        priv_key = strdup(context->pre_init_info->settings->priv_key);
+    }
+    else {
+        priv_key = NULL;
+    }
 
     //reload config
     free_config_settings(context->pre_init_info->settings);
 
     context->pre_init_info->settings = config_parse(context->pre_init_info->config, context->pre_init_info->home, context->pre_init_info->xdg_config_home);
 
-    //reload socket if the port has changed
-    if (http_port != context->pre_init_info->settings->http_port) {
-        struct evhttp_bound_socket* socket = make_http_socket(context);
+    if (context->pre_init_info->settings->https_enable != 0) {
+        //test if was already enabled
+        if (https_enable == context->pre_init_info->settings->https_enable) {
+            //reload socket if the port has changed
+            if (https_port != context->pre_init_info->settings->https_port) {
+                struct evhttp_bound_socket* socket = make_https_socket(context);
 
-        evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+                evhttp_del_accept_socket(context->event_box->https_base, context->event_box->https_socket);
 
-        context->event_box->http_socket = socket;
+                context->event_box->https_socket = socket;
+            }
+
+            if (https_only != context->pre_init_info->settings->https_only) {
+                //something is diffrent now
+                if (context->pre_init_info->settings->https_only != 0) {
+                    //remove http base
+                    if (context->event_box->http_base != NULL) {
+                        evhttp_free(context->event_box->http_base);
+                        context->event_box->http_base = NULL;
+                    }
+                }
+                else {
+                    //make a http base and registar callbacks
+                    context->event_box->http_socket = make_http_socket(context);
+
+                    set_callbacks(context->event_box->http_base, context);
+                }
+            }
+            else {
+                //reload socket if the port has changed
+                if (http_port != context->pre_init_info->settings->http_port) {
+                    struct evhttp_bound_socket* socket = make_http_socket(context);
+
+                    evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+
+                    context->event_box->http_socket = socket;
+                }
+            }
+
+            if (pub_key != NULL && context->pre_init_info->settings->pub_key != NULL) {
+                if (strcmp(pub_key, context->pre_init_info->settings->pub_key) != 0) {
+                    // if they are not equal and not null set
+                    if (context->pre_init_info->settings->pub_key != NULL) {
+                        SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
+                    }
+                }
+            } else if (context->pre_init_info->settings->pub_key != NULL) {
+                SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
+            }
+
+            if (priv_key != NULL && context->pre_init_info->settings->priv_key != NULL) {
+                if (strcmp(priv_key, context->pre_init_info->settings->priv_key) != 0) {
+                    // if they are not equal and not null set
+                    if (context->pre_init_info->settings->priv_key != NULL) {
+                        SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
+                    }
+                }
+            } else if (context->pre_init_info->settings->priv_key != NULL) {
+                SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
+            }
+
+            if (SSL_CTX_check_private_key(context->ssl_ctx)) {
+                syslog(LOG_WARNING, "ssl private key does not match");
+            }
+            
+        }
+        else {
+            //make the socket
+            context->event_box->https_socket = make_https_socket(context);
+
+            //ssl stuff
+            context->ssl_ctx = SSL_CTX_new(TLS_server_method());
+
+            if (context->pre_init_info->settings->pub_key != NULL) {
+                SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
+            }
+
+            if (context->pre_init_info->settings->priv_key != NULL) {
+                SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
+            }
+
+            if (SSL_CTX_check_private_key(context->ssl_ctx)) {
+                syslog(LOG_WARNING, "ssl private key does not match");
+            }
+
+            //set callback
+            evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
+
+            set_callbacks(context->event_box->https_base, context);
+        }
+    }
+    else {
+        //reload socket if the port has changed
+        if (http_port != context->pre_init_info->settings->http_port) {
+            struct evhttp_bound_socket* socket = make_http_socket(context);
+
+            evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
+
+            context->event_box->http_socket = socket;
+        }
+
+        if (https_enable != 0) {
+            if (context->event_box->https_base != NULL) {
+                evhttp_free(context->event_box->https_base);
+                context->event_box->https_base = NULL;
+            }
+
+            SSL_CTX_free(context->ssl_ctx);
+        }
     }
 
     //save handling
@@ -349,6 +471,14 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
             close_save(context);
             open_save(context->pre_init_info->settings->save_location, context);
         }
+    }
+
+    if (pub_key != NULL) {
+        free(pub_key);
+    }
+
+    if (priv_key != NULL) {
+        free(priv_key);
     }
 
     return;
@@ -453,7 +583,11 @@ static struct bufferevent* make_ssl_bufferevent(struct event_base* base, void* u
 
     SSL* ssl = SSL_new(context->ssl_ctx);
 
-    return bufferevent_openssl_socket_new(base, evhttp_bound_socket_get_fd(sock), ssl, BUFFEREVENT_SSL_ACCEPTING, 0);
+    struct bufferevent* bev = bufferevent_openssl_socket_new(base, evhttp_bound_socket_get_fd(sock), ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+
+    bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
+    
+    return bev;
 }
 
 static void generic_http_cb(struct evhttp_request* req, void* arg) {
