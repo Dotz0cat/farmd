@@ -42,7 +42,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 
 - [ ] livestock
 
-- [ ] ping save
+- [x] ping save
 
 - [ ] basic automation
 	- [ ] auto harvest field

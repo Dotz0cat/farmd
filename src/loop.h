@@ -103,10 +103,12 @@ static void silo_query_cb(struct evhttp_request* req, void* arg);
 static void create_save_cb(struct evhttp_request* req, void* arg);
 static void open_save_cb(struct evhttp_request* req, void* arg);
 static void close_save_cb(struct evhttp_request* req, void* arg);
+static void ping_save_cb(struct evhttp_request* req, void* arg);
 
 static int open_save(const char* file_name, loop_context* context);
 static int create_save(const char* file_name, loop_context* context);
 static int close_save(loop_context* context);
+static int ping_save(const char* filename);
 
 static void get_barn_allocation_cb(struct evhttp_request* req, void* arg);
 static void get_silo_allocation_cb(struct evhttp_request* req, void* arg);
