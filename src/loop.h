@@ -134,6 +134,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg);
 
 static void plant_tree_cb(struct evhttp_request* req, void* arg);
 
+static void tree_mature_cb(evutil_socket_t fd, short events, void* user_data);
 static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_data);
 static void tree_harvest_cb(struct evhttp_request* req, void* arg);
 static void tree_status_cb(struct evhttp_request* req, void* arg);

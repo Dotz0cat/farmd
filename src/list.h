@@ -55,15 +55,15 @@ enum field_crop {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
+//enum, string, time, buy, sell, storage, item_type, maturity time
 #define TREE_CROP_TABLE \
-X(NONE_TREE, "none", 0, 0, 0, NONE_STORAGE, NONE_PRODUCT), \
-X(PEARS, "pears", 60, 10, 8, BARN, TREE_PRODUCT), \
-X(APPLES, "apples", 60, 10, 8, BARN, TREE_PRODUCT), \
-X(ORANGES, "oranges", 60, 10, 8, BARN, TREE_PRODUCT), \
-X(PEACHES, "peaches", 60, 10, 8, BARN, TREE_PRODUCT)
+X(NONE_TREE, "none", 0, 0, 0, NONE_STORAGE, NONE_PRODUCT, 0), \
+X(PEARS, "pears", 60, 10, 8, BARN, TREE_PRODUCT, 60), \
+X(APPLES, "apples", 60, 10, 8, BARN, TREE_PRODUCT, 60), \
+X(ORANGES, "oranges", 60, 10, 8, BARN, TREE_PRODUCT, 60), \
+X(PEACHES, "peaches", 60, 10, 8, BARN, TREE_PRODUCT, 60)
 
-#define X(a, b, c, d, e, f, g) a
+#define X(a, b, c, d, e, f, g, h) a
 enum tree_crop {
     TREE_CROP_TABLE
 };
@@ -89,6 +89,8 @@ struct _trees_list {
     int tree_number;
 
     enum tree_crop type;
+
+    int maturity;
 
     int completion;
 
