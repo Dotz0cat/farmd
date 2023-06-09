@@ -26,8 +26,8 @@ const char* field_crop_strings[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]=b
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]=b
 const char* tree_crop_strings[] = {
     TREE_CROP_TABLE
 };
@@ -40,8 +40,8 @@ const int field_crop_buy_cost_table[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]=d
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]=d
 const int tree_crop_buy_cost_table[] = {
     TREE_CROP_TABLE
 };
@@ -54,8 +54,8 @@ const int field_crop_sell_cost_table[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]=e
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]=e
 const int tree_crop_sell_cost_table[] = {
     TREE_CROP_TABLE
 };
@@ -68,8 +68,8 @@ const enum storage field_crop_storage[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]=f
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]=f
 const enum storage tree_crop_storage[] = {
     TREE_CROP_TABLE
 };
@@ -84,8 +84,8 @@ const enum item_type field_crop_type[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]=g
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]=g
 const enum item_type tree_crop_type[] = {
     TREE_CROP_TABLE
 };

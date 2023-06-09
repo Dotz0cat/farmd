@@ -26,9 +26,16 @@ const struct timeval field_time[] = {
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]={c, 0}
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]={c, 0}
 const struct timeval tree_time[] = {
+    TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, time, buy, sell, storage, item_type, maturity time
+#define X(a, b, c, d, e, f, g, h) [a]={h, 0}
+const struct timeval tree_maturity_time[] = {
     TREE_CROP_TABLE
 };
 #undef X
@@ -961,10 +968,42 @@ static int open_save(const char* file_name, loop_context* context) {
             //events here later
 
             if (list->type != NONE_TREE) {
+                int set_maturity = 0;
                 
+                if (get_tree_maturity(context->db, list->tree_number) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_tree_time(context->db, list->tree_number);
+
+                    if (time_from_db > now) {
+                        //make an event as it has not finshed
+                        struct timeval tv;
+                        tv.tv_sec = time_from_db - now;
+                        tv.tv_usec = 0;
+
+                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        box->list = list;
+                        box->db = context->db;
+                        list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
+
+                        event_add(list->event, &tv);
+                    }
+                    else {
+                        //if it is not less then it is equal or greater
+                        list->maturity = 1;
+                        set_tree_maturity(context->db, list->tree_number, 1);
+                        set_maturity = 1;
+                    }
+                }
+                else {
+                    list->maturity = 1;
+                }
+
                 if (get_tree_completion(context->db, list->tree_number) == 0) {
                     time_t now = time(NULL);
                     time_t time_from_db = get_tree_time(context->db, list->tree_number);
+                    if (set_maturity == 1) {
+                        time_from_db = time_from_db + tree_time[list->type].tv_sec;
+                    }
 
                     if (time_from_db > now) {
                         //make an event as it has not finshed
@@ -2272,7 +2311,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
                 box->list = list;
                 box->db = context->db;
 
-                list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
+                list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
                 if (list->event == NULL) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
@@ -2328,15 +2367,17 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
                 return;
             }
 
+            list->type = type;
             //add to trees table
             set_tree_type(context->db, list->tree_number, sanitized_string);
             set_tree_completion(context->db, list->tree_number, 0);
+            set_tree_maturity(context->db, list->tree_number, 0);
 
             //set the completetion time
-            set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
+            set_tree_time(context->db, list->tree_number, tree_maturity_time[type].tv_sec);
 
-            //set the tree timer
-            const struct timeval* tv = &tree_time[list->type];
+            //set the tree maturity timer
+            const struct timeval* tv = &tree_maturity_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
                 struct evbuffer* returnbuffer = evbuffer_new();
@@ -2347,7 +2388,6 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
                 return;
             }
 
-            list->type = type;
             tree_plot = list->tree_number;
 
             done = 1;
@@ -2369,6 +2409,32 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     evbuffer_add_printf(returnbuffer, "planted tree plot: %d\r\n", tree_plot);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
+}
+
+static void tree_mature_cb(evutil_socket_t fd, short events, void* user_data) {
+    struct box_for_list_and_db* box = user_data;
+    trees_list* list = box->list;
+
+    list->maturity = 1;
+    list->completion = 0;
+    set_tree_maturity(box->db, list->tree_number, 1);
+    clear_tree_time(box->db, list->tree_number);
+
+    //reset event
+    struct event* event = list->event;
+    struct event_base* base = event_get_base(event);
+    if (event != NULL) {
+        event_del(event);
+        event_free(event);
+    }
+
+    struct event* new_event = event_new(base, -1, 0, tree_harvest_ready_cb, box);
+    list->event = new_event;
+    const struct timeval* tv = &tree_time[list->type];
+    set_tree_time(box->db, list->tree_number, tree_time[list->type].tv_sec);
+    event_add(new_event, tv);
+
+    return;
 }
 
 static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_data) {
@@ -2570,7 +2636,18 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
         else {
             complete = "not ready";
         }
-        evbuffer_add_printf(returnbuffer, "tree%d: %s %s\r\n", list->tree_number, tree_crop_enum_to_string(list->type), complete);
+
+        char* maturity;
+        if (list->maturity == 1) {
+            maturity = "mature";
+        }
+        else if (get_tree_maturity(context->db, list->tree_number) == 1) {
+            maturity = "mature";
+        }
+        else {
+            maturity = "not mature";
+        }
+        evbuffer_add_printf(returnbuffer, "tree%d: %s %s %s\r\n", list->tree_number, tree_crop_enum_to_string(list->type), maturity, complete);
         list = list->next;
     } while (list != NULL);
 

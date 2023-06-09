@@ -88,6 +88,9 @@ int clear_tree_time(sqlite3* db, const int index);
 int set_tree_completion(sqlite3* db, const int index, const int completion);
 int get_tree_completion(sqlite3* db, const int index);
 
+int set_tree_maturity(sqlite3* db, const int index, const int maturity);
+int get_tree_maturity(sqlite3* db, const int index);
+
 int add_field(sqlite3* db, const int index);
 int remove_field(sqlite3* db, const int index);
 int set_field_type(sqlite3* db, const int index, const char* type);
@@ -122,7 +125,7 @@ CREATE TABLE EconContracts (Buyer TEXT, Price INT CHECK(Price > 0));
 
 CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 
-CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
+CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Mature INT CHECK(Mature = 0 OR Mature = 1), Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
 
 CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
 */

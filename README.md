@@ -49,7 +49,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 	- [ ] auto plant fields
 	- [ ] auto harvest trees
 
-- [ ] tree maturity
+- [x] tree maturity
 
 - [ ] improve functions
 	- candidates
@@ -60,6 +60,8 @@ farmd controls all the backend of the game and farmc will be how you play it.
 		- [ ] skill_dep_check
 
 - [ ] special item system
+
+- [ ] add times/prices for everything
 
 - [ ] find a standard to document api and api quirks
 
@@ -146,7 +148,7 @@ And over https over localhost port 8443 (when enabled and given correct keys)
 	- example
 		- `$ curl http://localhost:8080/getLevel -X GET`
 
-- - /getXp
+- /getXp
 	- Get the current amount of xp
 	- Uses http GET
 	- example
