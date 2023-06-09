@@ -216,6 +216,11 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
         abort();
     }
 
+    if (evhttp_set_cb(base, "/pingSave", ping_save_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /pingSave");
+        abort();
+    }
+
     if (evhttp_set_cb(base, "/barnAllocation", get_barn_allocation_cb, context)) {
         syslog(LOG_WARNING, "failed to set /barnAllocation");
         abort();
@@ -902,6 +907,70 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
+static void ping_save_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    //save open check here if implented
+
+    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+
+    const char* file_name = evhttp_uri_get_query(uri_struct);
+    char* filename = NULL;
+
+    if (file_name == NULL) {
+        //check for post parameters
+        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        size_t buffersize = evbuffer_get_length(inputbuffer);
+        buffersize++;
+        filename = malloc(buffersize);
+        if (filename == NULL) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "error\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        evbuffer_copyout(inputbuffer, filename, buffersize);
+        filename[buffersize - 1] = '\0';
+        //check if filled
+        if (strcmp(filename, "") == 0) {
+            if (filename != NULL) {
+                free(filename);
+            }
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "no query\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+        file_name = filename;
+    }
+
+    if (ping_save(file_name) != 0) {
+        if (filename != NULL) {
+            free(filename);
+        }
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "error pinging save\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+    }
+
+    if (filename != NULL) {
+        free(filename);
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "save pinged\r\n");
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+}
+
 static int open_save(const char* file_name, loop_context* context) {
     int rc = open_save_db(file_name, &context->db);
     if (rc != 0) {
@@ -1097,6 +1166,76 @@ static int close_save(loop_context* context) {
             free(temp);
         }
     }
+
+    return 0;
+}
+
+static int ping_save(const char* filename) {
+    sqlite3* db;
+    int rc = open_save_db(filename, &db);
+
+    if (rc != 0) {
+        return -1;
+    }
+
+    int fields = get_number_of_fields(db);
+    if (fields > 0) {
+        for (int i = 0; i < fields; i++) {
+            const char* field_type = get_field_type(db, i);
+            enum field_crop type = field_crop_string_to_enum(field_type);
+            free((char*) field_type);
+
+            if (type != NONE_FIELD) {
+
+                if (get_field_completion(db, i) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_field_time(db, i);
+
+                    if (time_from_db <= now) {
+                        set_field_completion(db, i, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    //run tree code
+    int trees = get_number_of_tree_plots(db);
+    if (trees > 0) {
+        for (int i = 0; i < trees; i++) {
+            const char* tree_type = get_tree_type(db, i);
+            enum tree_crop type = tree_crop_string_to_enum(tree_type);
+            free((char*) tree_type);
+
+            if (type != NONE_TREE) {
+                int set_maturity = 0;
+                
+                if (get_tree_maturity(db, i) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_tree_time(db, i);
+
+                    if (time_from_db <= now) {
+                        set_tree_maturity(db, i, 1);
+                        set_maturity = 1;
+                    }
+                }
+
+                if (get_tree_completion(db, i) == 0) {
+                    time_t now = time(NULL);
+                    time_t time_from_db = get_tree_time(db, i);
+                    if (set_maturity == 1) {
+                        time_from_db = time_from_db + tree_time[type].tv_sec;
+                    }
+
+                    if (time_from_db <= now) {
+                        set_tree_completion(db, i, 1);
+                    }
+                }
+            }
+        }
+    }
+
+    close_save_db(db);
 
     return 0;
 }
