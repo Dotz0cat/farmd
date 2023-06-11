@@ -38,8 +38,8 @@ int create_save_db(const char* filename);
 int open_save_db(const char* filename, sqlite3** db);
 void close_save_db(sqlite3* db);
 
-int barn_query(sqlite3* db, const char* item);
-int silo_query(sqlite3* db, const char* item);
+int barn_query_db(sqlite3* db, const char* item);
+int silo_query_db(sqlite3* db, const char* item);
 
 int get_barn_allocation(sqlite3* db);
 int get_silo_allocation(sqlite3* db);

@@ -79,7 +79,7 @@ void close_save_db(sqlite3* db) {
     sqlite3_close(db);
 }
 
-int barn_query(sqlite3* db, const char* item) {
+int barn_query_db(sqlite3* db, const char* item) {
     sqlite3_stmt* stmt;
 
     int quanity;
@@ -115,7 +115,7 @@ int barn_query(sqlite3* db, const char* item) {
     return quanity;
 }
 
-int silo_query(sqlite3* db, const char* item) {
+int silo_query_db(sqlite3* db, const char* item) {
     sqlite3_stmt* stmt;
 
     int quanity;
