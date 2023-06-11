@@ -53,6 +53,12 @@ enum item_status check_silo_item_status(sqlite3* db, const char* item);
 int add_barn_meta_property(sqlite3* db, const char* property, const int key);
 int add_silo_meta_property(sqlite3* db, const char* property, const int key);
 
+int get_barn_meta_property(sqlite3* db, const char* property);
+int get_silo_meta_property(sqlite3* db, const char* property);
+
+int update_barn_meta_property(sqlite3* db, const char* property, const int value);
+int update_silo_meta_property(sqlite3* db, const char* property, const int value);
+
 int add_meta_property(sqlite3* db, const char* property, const int key);
 
 int get_money(sqlite3* db);
@@ -108,11 +114,11 @@ int get_field_completion(sqlite3* db, const int index);
 CREATE TABLE Barn (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
 CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));
                     
-    CREATE VIEW BarnCompacity AS
+    CREATE VIEW BarnCapacity AS
     SELECT SUM(Quanity) FROM Barn
     WHERE Status != 'SPECIAL';
                     
-    CREATE VIEW SiloCompacity AS
+    CREATE VIEW SiloCapacity AS
     SELECT SUM(Quanity) FROM Silo
     WHERE Status != 'SPECIAL';
     
@@ -121,7 +127,7 @@ CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 
 CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT CHECK(Status >= 0));
 
-CREATE TABLE EconContracts (Buyer TEXT, Price INT CHECK(Price > 0));
+CREATE TABLE EconContracts (Buyer TEXT, Item TEXT, ItemReward TEXT, Reward INT CHECK(Reward > 0));
 
 CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 

@@ -33,6 +33,7 @@ enum item_type {
     NONE_PRODUCT,
     FIELD_PRODUCT,
     TREE_PRODUCT,
+    SPECIAL_PRODUCT,
     OTHER_PRODUCT
 };
 
@@ -66,6 +67,18 @@ X(PEACHES, "peaches", 60, 10, 8, BARN, TREE_PRODUCT, 60)
 #define X(a, b, c, d, e, f, g, h) a
 enum tree_crop {
     TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, buy, sell, item_type, storage
+#define SPECIAL_ITEM_TABLE \
+X(NONE_SPECIAL, "none", 0, 0, NONE_PRODUCT, NONE_STORAGE), \
+X(BARN_UPGRADE_ITEM, "BarnUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN), \
+X(SILO_UPGRADE_ITEM, "SiloUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN)
+
+#define X(a, b, c, d, e, f) a
+enum special_item {
+    SPECIAL_ITEM_TABLE
 };
 #undef X
 
@@ -122,12 +135,19 @@ enum tree_crop tree_crop_string_to_enum(const char* type);
 enum storage get_storage_type_string(const char* string);
 enum storage get_storage_type_field(const enum field_crop type);
 enum storage get_storage_type_tree(const enum tree_crop type);
-int tree_crop_buy_cost(enum tree_crop item);
-int tree_crop_sell_cost(enum tree_crop item);
-int field_crop_buy_cost(enum field_crop item);
-int field_crop_sell_cost(enum field_crop item);
+enum storage get_storage_type_special(const enum special_item type);
+int tree_crop_buy_cost(const enum tree_crop item);
+int tree_crop_sell_cost(const enum tree_crop item);
+int field_crop_buy_cost(const enum field_crop item);
+int field_crop_sell_cost(const enum field_crop item);
+int special_item_buy_cost(const enum special_item item);
+int special_item_sell_cost(const enum special_item item);
 enum item_type get_product_type_string(const char* string);
 enum item_type get_product_type_field(const enum field_crop type);
 enum item_type get_product_type_tree(const enum tree_crop type);
+enum item_type get_product_type_special(const enum special_item type);
+
+enum special_item special_item_string_to_enum(const char* string);
+const char* special_item_enum_to_string(const enum special_item item);
 
 #endif /* LIST_H */

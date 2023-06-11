@@ -146,4 +146,9 @@ static void sell_item_cb(struct evhttp_request* req, void* arg);
 static void item_buy_price_cb(struct evhttp_request* req, void* arg);
 static void item_sell_price_cb(struct evhttp_request* req, void* arg);
 
+static void get_barn_level_cb(struct evhttp_request* req, void* arg);
+static void get_silo_level_cb(struct evhttp_request* req, void* arg);
+static void upgrade_barn_cb(struct evhttp_request* req, void* arg);
+static void upgrade_silo_cb(struct evhttp_request* req, void* arg);
+
 #endif /* LOOP_H */

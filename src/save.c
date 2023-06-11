@@ -34,8 +34,8 @@ int create_save_db(const char* filename) {
 
     char* sql = "CREATE TABLE Barn (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
                 "CREATE TABLE Silo (Item TEXT UNIQUE, Quantity INT CHECK(Quantity >= 0), Status TEXT CHECK(Status IN ('UNLOCKED', 'LOCKED', 'SPECIAL')));"
-                "CREATE VIEW BarnCompacity AS SELECT SUM(Quantity) FROM Barn WHERE Status != 'SPECIAL';"
-                "CREATE VIEW SiloCompacity AS SELECT SUM(Quantity) FROM Silo WHERE Status != 'SPECIAL';"
+                "CREATE VIEW BarnCapacity AS SELECT SUM(Quantity) FROM Barn WHERE Status != 'SPECIAL';"
+                "CREATE VIEW SiloCapacity AS SELECT SUM(Quantity) FROM Silo WHERE Status != 'SPECIAL';"
                 "CREATE TABLE BarnMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
                 "CREATE TABLE SiloMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
                 "CREATE TABLE SkillTree (Skill TEXT UNIQUE, Status INT CHECK(Status >= 0));"
@@ -156,7 +156,7 @@ int get_barn_allocation(sqlite3* db) {
 
     int allocation;
 
-    char* sql = "SELECT * FROM BarnCompacity;";
+    char* sql = "SELECT * FROM BarnCapacity;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -189,7 +189,7 @@ int get_silo_allocation(sqlite3* db) {
 
     int allocation;
 
-    char* sql = "SELECT * FROM SiloCompacity;";
+    char* sql = "SELECT * FROM SiloCapacity;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -222,7 +222,7 @@ int get_barn_max(sqlite3* db) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Value FROM BarnMeta WHERE Property == 'MaxCompacity';";
+    char* sql = "SELECT Value FROM BarnMeta WHERE Property == 'MaxCapacity';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -255,7 +255,7 @@ int get_silo_max(sqlite3* db) {
 
     sqlite3_stmt* stmt;
 
-    char* sql = "SELECT Value FROM SiloMeta WHERE Property == 'MaxCompacity';";
+    char* sql = "SELECT Value FROM SiloMeta WHERE Property == 'MaxCapacity';";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 
@@ -426,6 +426,145 @@ int add_silo_meta_property(sqlite3* db, const char* property, const int key) {
     if (rc == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, property, -1, NULL);
         sqlite3_bind_int(stmt, 2, key);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int get_barn_meta_property(sqlite3* db, const char* property) {
+    int value;
+
+    sqlite3_stmt* stmt;
+
+    char* sql = "SELECT Value FROM BarnMeta WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+       
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    value = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return value;
+}
+
+int get_silo_meta_property(sqlite3* db, const char* property) {
+    int value;
+
+    sqlite3_stmt* stmt;
+
+    char* sql = "SELECT Value FROM SiloMeta WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+       
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    value = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return value;
+}
+
+int update_barn_meta_property(sqlite3* db, const char* property, const int value) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE BarnMeta SET Value = Value + ? WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, value);
+        sqlite3_bind_text(stmt, 2, property, -1, NULL);
+       
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int update_silo_meta_property(sqlite3* db, const char* property, const int value) {
+    sqlite3_stmt* stmt;
+
+    char* sql = "UPDATE SiloMeta SET Value = Value + ? WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, value);
+        sqlite3_bind_text(stmt, 2, property, -1, NULL);
     }
     else {
         syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));

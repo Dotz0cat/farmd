@@ -38,12 +38,12 @@ int add_inital_save_values(sqlite3* db) {
         return -1;
     }
 
-    rc = add_barn_meta_property(db, "MaxCompacity", 50);
+    rc = add_barn_meta_property(db, "MaxCapacity", 50);
     if (rc != 0) {
         return -1;
     }
 
-    rc = add_silo_meta_property(db, "MaxCompacity", 50);
+    rc = add_silo_meta_property(db, "MaxCapacity", 50);
     if (rc != 0) {
         return -1;
     }

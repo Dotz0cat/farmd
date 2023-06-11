@@ -38,7 +38,7 @@ farmd controls all the backend of the game and farmc will be how you play it.
 	- [ ] grainmill
 	- [ ] sugarmill
 
-- [ ] building upgrades
+- [x] building upgrades
 
 - [ ] livestock
 
@@ -59,7 +59,10 @@ farmd controls all the backend of the game and farmc will be how you play it.
 		- [ ] tree_crop_string_to_enum
 		- [ ] skill_dep_check
 
-- [ ] special item system
+- [x] special item system
+	- started
+
+- [ ] variable xp
 
 - [ ] add times/prices for everything
 
