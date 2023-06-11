@@ -370,6 +370,26 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
         syslog(LOG_WARNING, "failed to set /sell/price");
         abort();
     }
+
+    if (evhttp_set_cb(base, "/barn/level", get_barn_level_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barn/level");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/silo/level", get_silo_level_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /silo/level");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/barn/upgrade", upgrade_barn_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /barn/upgrade");
+        abort();
+    }
+
+    if (evhttp_set_cb(base, "/silo/upgrade", upgrade_silo_cb, context)) {
+        syslog(LOG_WARNING, "failed to set /silo/upgrade");
+        abort();
+    }
 }
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data) {
@@ -1908,7 +1928,8 @@ static void field_ready_cb(evutil_socket_t fd, short events, void* user_data) {
 static void xp_check(sqlite3* db) {
     int level = get_level(db);
     level--;
-    int xp_needed = pow(2, level) * 10;
+    //was pow(2, level) * 10;
+    int xp_needed = 10 << level;
     //xp needed for level 2 is 10
     //level 3 is 20
     //level 4 is 40
@@ -1948,8 +1969,10 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
     int skill_level = get_skill_status(context->db, "Fields");
     if (current < (skill_level * 3)) {
         //price is 2^current fields for next
-        if (get_money(context->db) > pow(2, current)) {
-            if (update_meta(context->db, (-1 * (pow(2, current))), "Money") == 0) {
+        //was pow(2, current)
+        int price = 2 << current;
+        if (get_money(context->db) > price) {
+            if (update_meta(context->db, (-1 * price), "Money") == 0) {
                 if (update_meta(context->db, 1, "Fields") != 0) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error adding field\r\n");
@@ -2048,8 +2071,10 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
     int skill_level = get_skill_status(context->db, "TreePlots");
     if (current < skill_level) {
         //price is 2^current + 1 plots for next
-        if (get_money(context->db) > pow(2, current + 1)) {
-            if (update_meta(context->db, (-1 * (pow(2, current + 1))), "Money") == 0) {
+        //was pow(2, current + 1)
+        int price = 2 << (current + 1);
+        if (get_money(context->db) > price) {
+            if (update_meta(context->db, (-1 * price), "Money") == 0) {
                 if (update_meta(context->db, 1, "TreePlots") != 0) {
                     struct evbuffer* returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
@@ -2872,6 +2897,13 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
             sanitized_string = tree_crop_enum_to_string(item);
             break;
         }
+        case SPECIAL_PRODUCT: {
+            enum special_item item = special_item_string_to_enum(query);
+            item_price = special_item_buy_cost(item);
+            storage_place = get_storage_type_special(item);
+            sanitized_string = special_item_enum_to_string(item);
+            break;
+        }
         case OTHER_PRODUCT:
             //nop
             item_price = 0;
@@ -2913,7 +2945,7 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
         if (get_barn_allocation(context->db) < get_barn_max(context->db)) {
             //check if item is there
             if (barn_query(context->db, sanitized_string) != -1) {
-                //remove item
+                //add item
                 if (update_barn(context->db, sanitized_string, 1) != 0) {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
@@ -2923,24 +2955,43 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                if (get_skill_status(context->db, sanitized_string) == 0) {
-                    if (add_item_to_barn(context->db, sanitized_string, LOCKED) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error adding item to barn");
-                        return;
+                if (type != SPECIAL_PRODUCT) {
+                    if (get_skill_status(context->db, sanitized_string) == 0) {
+                        if (add_item_to_barn(context->db, sanitized_string, LOCKED) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error adding item to barn");
+                            return;
+                        }
+                        if (update_barn(context->db, sanitized_string, 1) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error updating barn");
+                            return;
+                        }
                     }
-                    if (update_barn(context->db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error updating barn");
-                        return;
+                    else {
+                        if (add_item_to_barn(context->db, sanitized_string, UNLOCKED) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error adding item to barn");
+                            return;
+                        }
+                        if (update_barn(context->db, sanitized_string, 1) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error updating barn");
+                            return;
+                        }
                     }
                 }
                 else {
-                    if (add_item_to_barn(context->db, sanitized_string, UNLOCKED) != 0) {
+                    //if it is a special product it is special
+                    if (add_item_to_barn(context->db, sanitized_string, SPECIAL) != 0) {
                         evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -2979,35 +3030,54 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                if (get_skill_status(context->db, sanitized_string) == 0) {
-                    if (add_item_to_silo(context->db, sanitized_string, LOCKED) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error adding item to silo");
-                        return;
+                if (type != SPECIAL_PRODUCT) {
+                    if (get_skill_status(context->db, sanitized_string) == 0) {
+                        if (add_item_to_silo(context->db, sanitized_string, LOCKED) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error adding item to silo");
+                            return;
+                        }
+                        if (update_silo(context->db, sanitized_string, 1) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error updating silo");
+                            return;
+                        }
                     }
-                    if (update_silo(context->db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error updating silo");
-                        return;
+                    else {
+                        if (add_item_to_silo(context->db, sanitized_string, UNLOCKED) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error adding item to silo");
+                            return;
+                        }
+                        if (update_silo(context->db, sanitized_string, 1) != 0) {
+                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+                            evbuffer_free(returnbuffer);
+                            syslog(LOG_WARNING, "error updating silo");
+                            return;
+                        }
                     }
                 }
                 else {
-                    if (add_item_to_silo(context->db, sanitized_string, UNLOCKED) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                    //if it is a special product it is special
+                    if (add_item_to_barn(context->db, sanitized_string, SPECIAL) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error adding item to silo");
+                        syslog(LOG_WARNING, "error adding item to barn");
                         return;
                     }
-                    if (update_silo(context->db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    if (update_barn(context->db, sanitized_string, 1) != 0) {
+                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error updating silo");
+                        syslog(LOG_WARNING, "error updating barn");
                         return;
                     }
                 }
@@ -3108,6 +3178,13 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
             item_price = tree_crop_sell_cost(item);
             storage_place = get_storage_type_tree(item);
             sanitized_string = tree_crop_enum_to_string(item);
+            break;
+        }
+        case SPECIAL_PRODUCT: {
+            enum special_item item = special_item_string_to_enum(query);
+            item_price = special_item_sell_cost(item);
+            storage_place = get_storage_type_special(item);
+            sanitized_string = special_item_enum_to_string(item);
             break;
         }
         case OTHER_PRODUCT:
@@ -3226,6 +3303,11 @@ static void item_buy_price_cb(struct evhttp_request* req, void* arg) {
             evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_buy_cost(item));
             break;
         }
+        case SPECIAL_PRODUCT: {
+            enum special_item item = special_item_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, special_item_sell_cost(item));
+            break;
+        }
         case OTHER_PRODUCT:
             //nop
             evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
@@ -3277,6 +3359,11 @@ static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
             evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_sell_cost(item));
             break;
         }
+        case SPECIAL_PRODUCT: {
+            enum special_item item = special_item_string_to_enum(query);
+            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, special_item_sell_cost(item));
+            break;
+        }
         case OTHER_PRODUCT:
             //nop
             evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
@@ -3288,4 +3375,341 @@ static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
 
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
+}
+
+static void get_barn_level_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int barn_level = get_barn_meta_property(context->db, "Level");
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "Barn Level: %d\r\n", barn_level);
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+    return;
+}
+
+static void get_silo_level_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int silo_level = get_silo_meta_property(context->db, "Level");
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "Silo Level: %d\r\n", silo_level);
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+    return;
+}
+
+static void upgrade_barn_cb(struct evhttp_request* req, void* arg) {
+    loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //get current
+    int current_level = get_barn_meta_property(context->db, "Level");
+
+    //check eligibility
+    int current_farm_level = get_level(context->db);
+
+    //1 barn level for every 3 farm levels
+    if (current_level > (current_farm_level / 3)) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "insuffecent farm level to upgrade\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //calculate ammounts
+    //cost scales with barn level
+    //money and special item that I haven't came up with.
+    int amount;
+    int money_amount;
+    //Yes this does use integer division. I want it to be lazy
+    amount = 3 + (current_level / 2);
+    money_amount = (500 * current_level);
+
+    //name lookup
+    const char* upgrade_item = special_item_enum_to_string(BARN_UPGRADE_ITEM);
+    //type lookup even though it will be barn
+    enum storage store = get_storage_type_special(BARN_UPGRADE_ITEM);
+
+    if (store == BARN) {
+        //check items
+        if (barn_query(context->db, upgrade_item) < amount || get_money(context->db) < money_amount) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (store == SILO) {
+        //check items
+        if (silo_query(context->db, upgrade_item) < amount || get_money(context->db) < money_amount) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //subtract items
+    if (update_meta(context->db, (-1 * money_amount), "Money") != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "could not subtract money\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    if (store == BARN) {
+        if (update_barn(context->db, upgrade_item, (-1 * amount)) != 0) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (store == SILO) {
+        if (update_silo(context->db, upgrade_item, (-1 * amount)) != 0) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //upgrade
+    if (update_barn_meta_property(context->db, "Level", 1) != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "error updating level\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int capacity = 0;
+
+    if (current_level == 1) {
+        capacity = 50;
+    }
+    else if (current_level > 1 && current_level < 10) {
+        capacity = 100 << (current_level / 9);
+    }
+    else {
+        capacity = 100 << (current_level / 10);
+    }
+
+    if (update_barn_meta_property(context->db, "MaxCapacity", capacity) != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "error updating max capacity\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "sucessfully upgrade barn\r\n");
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+    return;
+}
+
+static void upgrade_silo_cb(struct evhttp_request* req, void* arg) {
+        loop_context* context = arg;
+
+    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
+        return;
+    }
+
+    if (context->db == NULL) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //get current
+    int current_level = get_silo_meta_property(context->db, "Level");
+
+    //check eligibility
+    int current_farm_level = get_level(context->db);
+
+    //1 silo level for every 3 farm levels
+    if (current_level > (current_farm_level / 3)) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "insuffecent farm level to upgrade\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //calculate ammounts
+    //cost scales with silo level
+    //money and special item that I haven't came up with.
+    int amount;
+    int money_amount;
+    //Yes this does use integer division. I want it to be lazy
+    amount = 3 + (current_level / 2);
+    money_amount = (500 * current_level);
+
+    //name lookup
+    const char* upgrade_item = special_item_enum_to_string(SILO_UPGRADE_ITEM);
+    //type lookup even though it will be barn
+    enum storage store = get_storage_type_special(SILO_UPGRADE_ITEM);
+
+    if (store == BARN) {
+        //check items
+        if (barn_query(context->db, upgrade_item) < amount || get_money(context->db) < money_amount) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (store == SILO) {
+        //check items
+        if (silo_query(context->db, upgrade_item) < amount || get_money(context->db) < money_amount) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //subtract items
+    if (update_meta(context->db, (-1 * money_amount), "Money") != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "could not subtract money\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+    if (store == BARN) {
+        if (update_barn(context->db, upgrade_item, (-1 * amount)) != 0) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else if (store == SILO) {
+        if (update_silo(context->db, upgrade_item, (-1 * amount)) != 0) {
+            struct evbuffer* returnbuffer = evbuffer_new();
+            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+            evbuffer_free(returnbuffer);
+            return;
+        }
+    }
+    else {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    //upgrade
+    if (update_silo_meta_property(context->db, "Level", 1) != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "error updating level\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    int capacity = 0;
+
+    if (current_level == 1) {
+        capacity = 50;
+    }
+    else if (current_level > 1 && current_level < 10) {
+        capacity = 100 << (current_level / 9);
+    }
+    else {
+        capacity = 100 << (current_level / 10);
+    }
+
+    if (update_silo_meta_property(context->db, "MaxCapacity", capacity) != 0) {
+        struct evbuffer* returnbuffer = evbuffer_new();
+        evbuffer_add_printf(returnbuffer, "error updating max capacity\r\n");
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
+        evbuffer_free(returnbuffer);
+        return;
+    }
+
+    struct evbuffer* returnbuffer = evbuffer_new();
+    evbuffer_add_printf(returnbuffer, "sucessfully upgrade silo\r\n");
+    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+    return;
 }

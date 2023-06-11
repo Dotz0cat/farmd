@@ -33,6 +33,13 @@ const char* tree_crop_strings[] = {
 };
 #undef X
 
+//enum, string, buy, sell, item_type, storage
+#define X(a, b, c, d, e, f) [a]=b
+const char* special_item_strings[] = {
+    SPECIAL_ITEM_TABLE
+};
+#undef X
+
 //enum, string, time, buy, sell, storage, item_type
 #define X(a, b, c, d, e, f, g) [a]=d
 const int field_crop_buy_cost_table[] = {
@@ -44,6 +51,13 @@ const int field_crop_buy_cost_table[] = {
 #define X(a, b, c, d, e, f, g, h) [a]=d
 const int tree_crop_buy_cost_table[] = {
     TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, buy, sell, item_type, storage
+#define X(a, b, c, d, e, f) [a]=c
+const int special_item_buy_cost_table[] = {
+    SPECIAL_ITEM_TABLE
 };
 #undef X
 
@@ -61,6 +75,13 @@ const int tree_crop_sell_cost_table[] = {
 };
 #undef X
 
+//enum, string, buy, sell, item_type, storage
+#define X(a, b, c, d, e, f) [a]=d
+const int special_item_sell_cost_table[] = {
+    SPECIAL_ITEM_TABLE
+};
+#undef X
+
 //enum, string, time, buy, sell, storage, item_type
 #define X(a, b, c, d, e, f, g) [a]=f
 const enum storage field_crop_storage[] = {
@@ -72,6 +93,13 @@ const enum storage field_crop_storage[] = {
 #define X(a, b, c, d, e, f, g, h) [a]=f
 const enum storage tree_crop_storage[] = {
     TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, buy, sell, item_type, storage
+#define X(a, b, c, d, e, f) [a]=f
+const enum storage special_item_storage[] = {
+    SPECIAL_ITEM_TABLE
 };
 #undef X
 
@@ -88,6 +116,13 @@ const enum item_type field_crop_type[] = {
 #define X(a, b, c, d, e, f, g, h) [a]=g
 const enum item_type tree_crop_type[] = {
     TREE_CROP_TABLE
+};
+#undef X
+
+//enum, string, buy, sell, item_type, storage
+#define X(a, b, c, d, e, f) [a]=e
+const enum item_type special_item_type[] = {
+    SPECIAL_ITEM_TABLE
 };
 #undef X
 
@@ -324,6 +359,12 @@ enum storage get_storage_type_string(const char* string) {
         }
     }
 
+    for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
+        if (strcasecmp(string, special_item_strings[i]) == 0) {
+            return get_storage_type_special(i);
+        }
+    }
+
     return NONE_STORAGE;
 }
 
@@ -335,20 +376,32 @@ enum storage get_storage_type_tree(const enum tree_crop type) {
     return tree_crop_storage[type];
 }
 
-int tree_crop_buy_cost(enum tree_crop item) {
+enum storage get_storage_type_special(const enum special_item type) {
+    return special_item_storage[type];
+}
+
+int tree_crop_buy_cost(const enum tree_crop item) {
     return tree_crop_buy_cost_table[item];
 }
 
-int tree_crop_sell_cost(enum tree_crop item) {
+int tree_crop_sell_cost(const enum tree_crop item) {
     return tree_crop_sell_cost_table[item];
 }
 
-int field_crop_buy_cost(enum field_crop item) {
+int field_crop_buy_cost(const enum field_crop item) {
     return field_crop_buy_cost_table[item];
 }
 
-int field_crop_sell_cost(enum field_crop item) {
+int field_crop_sell_cost(const enum field_crop item) {
     return field_crop_sell_cost_table[item];
+}
+
+int special_item_buy_cost(const enum special_item item) {
+    return special_item_buy_cost_table[item];
+}
+
+int special_item_sell_cost(const enum special_item item) {
+    return special_item_sell_cost_table[item];
 }
 
 enum item_type get_product_type_string(const char* string) {
@@ -368,6 +421,12 @@ enum item_type get_product_type_string(const char* string) {
         }
     }
 
+    for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
+        if (strcasecmp(string, special_item_strings[i]) == 0) {
+            return get_product_type_special(i);
+        }
+    }
+
     return NONE_PRODUCT;
 }
 
@@ -377,4 +436,22 @@ enum item_type get_product_type_field(const enum field_crop type) {
 
 enum item_type get_product_type_tree(const enum tree_crop type) {
     return tree_crop_type[type];
+}
+
+enum item_type get_product_type_special(const enum special_item type) {
+    return special_item_type[type];
+}
+
+enum special_item special_item_string_to_enum(const char* string) {
+    for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
+        if (strcasecmp(string, special_item_strings[i]) == 0) {
+            return i;
+        }
+    }
+
+    return NONE_SPECIAL;
+}
+
+const char* special_item_enum_to_string(const enum special_item item) {
+    return special_item_strings[item];
 }
