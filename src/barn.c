@@ -20,7 +20,13 @@ This file is part of farmd.
 #include "barn.h"
 
 struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code) {
-    struct evbuffer *returnbuffer = evbuffer_new();
+   struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
 
     int number_of_items = barn_query_db(db, item);
 
@@ -32,6 +38,14 @@ struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code) {
 }
 
 struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int max = get_barn_max(db);
 
     int used = get_barn_allocation(db);
@@ -40,7 +54,6 @@ struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
 
     allocation = allocation * 100;
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "barn used: %.2f%%\r\n", allocation);
 
     *code = 200;
@@ -49,10 +62,16 @@ struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
 }
 
 struct evbuffer *barn_max(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
 
     int max = get_barn_max(db);
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Barn max: %d\r\n", max);
 
     *code = 200;
@@ -61,9 +80,16 @@ struct evbuffer *barn_max(sqlite3 *db, int *code) {
 }
 
 struct evbuffer *barn_level(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int barn_level = get_barn_meta_property(db, "Level");
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Barn Level: %d\r\n", barn_level);
 
     *code = 200;
@@ -73,6 +99,13 @@ struct evbuffer *barn_level(sqlite3 *db, int *code) {
 
 struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+    
     //get current
     int current_level = get_barn_meta_property(db, "Level");
 

@@ -22,6 +22,12 @@ This file is part of farmd.
 struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int number_of_items = silo_query_db(db, item);
 
     evbuffer_add_printf(returnbuffer, "%s: %i\r\n", item, number_of_items);
@@ -32,6 +38,14 @@ struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code) {
 }
 
 struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int max = get_silo_max(db);
 
     int used = get_silo_allocation(db);
@@ -40,7 +54,6 @@ struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
 
     allocation = allocation * 100;
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "silo used: %.2f%%\r\n", allocation);
 
     *code = 200;
@@ -49,9 +62,16 @@ struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
 }
 
 struct evbuffer *silo_max(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int max = get_silo_max(db);
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Silo max: %d\r\n", max);
 
     *code = 200;
@@ -60,9 +80,16 @@ struct evbuffer *silo_max(sqlite3 *db, int *code) {
 }
 
 struct evbuffer *silo_level(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     int barn_level = get_silo_meta_property(db, "Level");
 
-    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Silo Level: %d\r\n", barn_level);
 
     *code = 200;
@@ -72,6 +99,13 @@ struct evbuffer *silo_level(sqlite3 *db, int *code) {
 
 struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
+
+    if (db == NULL) {
+        *code = 500;
+        evbuffer_add_printf(returnbuffer, "no save open\r\n");
+        return returnbuffer;
+    }
+
     //get current
     int current_level = get_silo_meta_property(db, "Level");
 

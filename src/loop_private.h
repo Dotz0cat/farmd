@@ -36,6 +36,8 @@ static struct bufferevent *make_ssl_bufferevent(struct event_base *base, void *u
 
 static void generic_http_cb(struct evhttp_request *req, void *arg);
 
+static char *get_post_args(struct evhttp_request *req);
+
 static void barn_query_cb(struct evhttp_request *req, void *arg);
 static void silo_query_cb(struct evhttp_request *req, void *arg);
 
@@ -62,8 +64,8 @@ static void get_version_cb(struct evhttp_request *req, void *arg);
 static void get_barn_max_cb(struct evhttp_request *req, void *arg);
 static void get_silo_max_cb(struct evhttp_request *req, void *arg);
 
-static void fields_cb(struct evhttp_request *req, void *arg);
-static void fields_harvest_cb(struct evhttp_request *req, void *arg);
+static void field_status_cb(struct evhttp_request *req, void *arg);
+static void field_harvest_cb(struct evhttp_request *req, void *arg);
 static void plant_cb(struct evhttp_request *req, void *arg);
 static void field_ready_cb(evutil_socket_t fd, short events, void *user_data);
 

@@ -42,8 +42,12 @@ This file is part of farmd.
 #include "inital_values.h"
 #include "config.h"
 
+#include "box_struct.h"
+
 #include "barn.h"
 #include "silo.h"
+#include "field.h"
+#include "tree.h"
 
 typedef struct _events_box events_box;
 
@@ -75,13 +79,6 @@ struct _loop_context {
     trees_list *tree_list;
 
     SSL_CTX *ssl_ctx;
-};
-
-//bespoke struct just so I can pass 2 pointers with one
-struct box_for_list_and_db {
-    void *list;
-
-    sqlite3 *db;
 };
 
 void loop_run(loop_context *context);
