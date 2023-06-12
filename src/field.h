@@ -29,7 +29,7 @@ This file is part of farmd.
 
 struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code);
 struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code);
-struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code);
-struct evbuffer *buy_field(sqlite3 *db, fields_list *field_list, int *code);
+struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code);
+struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code);
 
 #endif /* FIELD_H */

@@ -19,33 +19,28 @@ This file is part of farmd.
 
 #include "loop_private.h"
 
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]={c, 0}
-static const struct timeval field_time[] = {
-    FIELD_CROP_TABLE
-};
-#undef X
+// //enum, string, time, buy, sell, storage, item_type
+// #define X(a, b, c, d, e, f, g) [a]={c, 0}
+// static const struct timeval field_time[] = {
+//     FIELD_CROP_TABLE
+// };
+// #undef X
 
 //enum, string, time, buy, sell, storage, item_type, maturity time
 #define X(a, b, c, d, e, f, g, h) [a]={c, 0}
-const struct timeval tree_time[] = {
+static const struct timeval tree_time[] = {
     TREE_CROP_TABLE
 };
 #undef X
 
-//enum, string, time, buy, sell, storage, item_type, maturity time
-#define X(a, b, c, d, e, f, g, h) [a]={h, 0}
-const struct timeval tree_maturity_time[] = {
-    TREE_CROP_TABLE
-};
-#undef X
+// //enum, string, time, buy, sell, storage, item_type, maturity time
+// #define X(a, b, c, d, e, f, g, h) [a]={h, 0}
+// static const struct timeval tree_maturity_time[] = {
+//     TREE_CROP_TABLE
+// };
+// #undef X
 
 void loop_run(loop_context *context) {
-
-    // event_enable_debug_logging(EVENT_LOG_DEBUG);
-    // event_set_log_callback(logging_cb);
-    // event_enable_debug_mode();
-
     context->event_box = malloc(sizeof(events_box));
 
     context->event_box->base = event_base_new();
@@ -1378,7 +1373,7 @@ static void plant_cb(struct evhttp_request *req, void *arg) {
 
     int code = 0;
     struct evbuffer *returnbuffer;
-    returnbuffer = plant_field(context->db, context->field_list, query, context->event_box->base, field_ready_cb, &code);
+    returnbuffer = plant_field(context->db, &context->field_list, query, context->event_box->base, field_ready_cb, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
@@ -1433,7 +1428,7 @@ static void buy_field_cb(struct evhttp_request *req, void *arg) {
 
     int code = 0;
     struct evbuffer *returnbuffer;
-    returnbuffer = buy_field(context->db, context->field_list, &code);
+    returnbuffer = buy_field(context->db, &context->field_list, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
@@ -1448,90 +1443,11 @@ static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = buy_tree_plot(context->db, &context->tree_list, &code);
 
-    int current = get_number_of_tree_plots(context->db);
-    int skill_level = get_skill_status(context->db, "TreePlots");
-    if (current < skill_level) {
-        //price is 2^current + 1 plots for next
-        //was pow(2, current + 1)
-        int price = 2 << (current + 1);
-        if (get_money(context->db) > price) {
-            if (update_meta(context->db, (-1 * price), "Money") == 0) {
-                if (update_meta(context->db, 1, "TreePlots") != 0) {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error adding tree plot");
-                    return;
-                }
-            }
-            else {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-        }
-        else {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "not enough money to buy tree plot\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    if (current == 0) {
-        context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
-        for (int i = 0; i < get_number_of_tree_plots(context->db); i++) {
-            if (add_tree(context->db, i) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-        }
-    }
-    else {
-        if (amend_trees_list(context->tree_list, get_number_of_tree_plots(context->db)) != 0) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error amending tree list\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            syslog(LOG_WARNING, "error amending tree list");
-            return;
-        }
-        for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
-            if (add_tree(context->db, i) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-        }
-    }
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "sucessfully bought tree plot\r\n");
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
     return;
 }
@@ -1726,242 +1642,26 @@ static void plant_tree_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    if (context->tree_list == NULL) {
-        context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
-        if (context->tree_list == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "could not make trees\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        for (int i = 0; i < get_number_of_tree_plots(context->db); i++) {
-            if (add_tree(context->db, i) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error adding tree to db");
-                return;
-            }
-        }
-    }
-
-    int current;
-    if ((current = get_number_of_trees_list(context->tree_list)) < get_number_of_tree_plots(context->db)) {
-        if (amend_trees_list(context->tree_list, get_number_of_tree_plots(context->db)) != 0) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "could not amend trees\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
-            if (add_tree(context->db, i) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error adding tree to db");
-                return;
-            }
-        }
-    }
-
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
 
     if (query == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        post_arg = malloc(buffersize);
-        if (post_arg == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, post_arg, buffersize);
-        post_arg[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(post_arg, "") == 0) {
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        post_arg = get_post_args(req);
         query = post_arg;
     }
 
-    enum tree_crop type;
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = plant_tree(context->db, &context->tree_list, query, context->event_box->base, tree_mature_cb, &code);
 
-    type = tree_crop_string_to_enum(query);
-
-    if (type == NONE_TREE) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "%s is not a correct query\r\n", query);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        return;
-    }
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 
     if (post_arg != NULL) {
         free(post_arg);
     }
-
-    const char *sanitized_string = tree_crop_enum_to_string(type);
-
-    if (get_skill_status(context->db, sanitized_string) == 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    //Plant tree plot
-    trees_list *list = context->tree_list;
-
-    int tree_plot = 0;
-
-    //so only one tree can be planted at a time
-    int done = 0;
-
-    do {
-        if (list->type == NONE_TREE) {
-            //plant a tree
-            //check if event is clear
-            if (list->event == NULL) {
-                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
-                box->list = list;
-                box->db = context->db;
-
-                list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
-                if (list->event == NULL) {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "error making event\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error making event for trees");
-                    return;
-                }
-
-            }
-
-            int price = tree_crop_buy_cost(type);
-
-            enum storage storage_place = get_storage_type_tree(type);
-
-            //consume crops or cash
-            if (storage_place == BARN) {
-                if (barn_query_db(context->db, sanitized_string) > 0) {
-                    if (update_barn(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                }
-            }
-            else if (storage_place == SILO) {
-                if (silo_query_db(context->db, sanitized_string) > 0) {
-                    if (update_silo(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                }
-            }
-            else if (get_money(context->db) > price) {
-                if (update_meta(context->db, (-1 * price), "Money") != 0) {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "could not update money\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    return;
-                }
-            }
-            else {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-
-            list->type = type;
-            //add to trees table
-            set_tree_type(context->db, list->tree_number, sanitized_string);
-            set_tree_completion(context->db, list->tree_number, 0);
-            set_tree_maturity(context->db, list->tree_number, 0);
-
-            //set the completetion time
-            set_tree_time(context->db, list->tree_number, tree_maturity_time[type].tv_sec);
-
-            //set the tree maturity timer
-            const struct timeval *tv = &tree_maturity_time[type];
-            int rc = event_add(list->event, tv);
-            if (rc != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error adding tree event");
-                return;
-            }
-
-            tree_plot = list->tree_number;
-
-            done = 1;
-        }
-
-       list = list->next;
-
-    } while(list != NULL && done == 0);
-
-    if (done == 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no open tree plot\r\n");
-        evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "planted tree plot: %d\r\n", tree_plot);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
 }
 
 static void tree_mature_cb(evutil_socket_t fd, short events, void *user_data) {
@@ -2009,135 +1709,12 @@ static void tree_harvest_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = harvest_tree(context->db, context->tree_list, context->event_box->base, tree_harvest_ready_cb, &code);
 
-    if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no trees\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    if (context->tree_list == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no tree\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    trees_list *list = context->tree_list;
-
-    do {
-        if (list->completion == 1 && list->type != NONE_TREE) {
-            enum storage storage_place = get_storage_type_tree(list->type);
-
-            if (storage_place == BARN) {
-                if (get_barn_allocation(context->db) < (get_barn_max(context->db)) - 1) {
-                    if (add_item_to_barn(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                    if (update_barn(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                }
-                else {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    return;
-                }
-            }
-            else if (storage_place == SILO) {
-                if (get_silo_allocation(context->db) < (get_silo_max(context->db)) - 1) {
-                    if (add_item_to_silo(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                    if (update_silo(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer *returnbuffer = evbuffer_new();
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        return;
-                    }
-                }
-                else {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to silo size\r\n", list->tree_number);
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    return;
-                }
-            }
-            else {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
-                evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-            
-            list->completion = 0;
-
-            //update the db
-            set_tree_completion(context->db, list->tree_number, 0);
-            set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
-
-            const struct timeval *tv = &tree_time[list->type];
-            if (list->event == NULL) {
-                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
-                box->list = list;
-                box->db = context->db;
-
-                list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
-                if (list->event == NULL) {
-                    struct evbuffer *returnbuffer = evbuffer_new();
-                    evbuffer_add_printf(returnbuffer, "error making event\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error making event for trees");
-                    return;
-                }
-            }
-            int rc = event_add(list->event, tv);
-            if (rc != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error adding tree event");
-                return;
-            }
-
-            update_meta(context->db, 2, "xp");
-            xp_check(context->db);
-        }
-        list = list->next;
-    } while (list != NULL);
-
-    evhttp_send_reply(req, HTTP_OK, "Client", NULL);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 }
 
 static void tree_status_cb(struct evhttp_request *req, void *arg) {
@@ -2148,63 +1725,11 @@ static void tree_status_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = tree_status(context->db, context->tree_list, &code);
 
-    if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    if (context->tree_list == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no trees\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    trees_list *list = context->tree_list;
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-
-    //check for races
-    do {
-        char *complete;
-        if (list->completion == 1) {
-            complete = "ready";
-            set_tree_completion(context->db, list->tree_number, 1);
-        }
-        else if (get_tree_completion(context->db, list->tree_number) == 1) {
-            complete = "ready";
-        }
-        else {
-            complete = "not ready";
-        }
-
-        char *maturity;
-        if (list->maturity == 1) {
-            maturity = "mature";
-        }
-        else if (get_tree_maturity(context->db, list->tree_number) == 1) {
-            maturity = "mature";
-        }
-        else {
-            maturity = "not mature";
-        }
-        evbuffer_add_printf(returnbuffer, "tree%d: %s %s %s\r\n", list->tree_number, tree_crop_enum_to_string(list->type), maturity, complete);
-        list = list->next;
-    } while (list != NULL);
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 

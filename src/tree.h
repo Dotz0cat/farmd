@@ -20,4 +20,16 @@ This file is part of farmd.
 #ifndef TREE_H
 #define TREE_H
 
+#include <event2/event.h>
+#include <event2/buffer.h>
+
+#include "save.h"
+#include "list.h"
+#include "box_struct.h"
+
+struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code);
+struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code);
+struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code);
+struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code);
+
 #endif /* TREE_H */

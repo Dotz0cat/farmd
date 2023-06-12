@@ -164,7 +164,7 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
     return returnbuffer;
 }
 
-struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code) {
+struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
     if (db == NULL) {
@@ -180,8 +180,8 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *c
     }
 
     if (field_list == NULL) {
-        field_list = make_fields_list(get_number_of_fields(db));
-        if (field_list == NULL) {
+        *field_list = make_fields_list(get_number_of_fields(db));
+        if (*field_list == NULL) {
             evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
             *code = 500;
             return returnbuffer;
@@ -196,8 +196,8 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *c
     }
 
     int current = 0;
-    if ((current = get_number_of_fields_list(field_list)) < get_number_of_fields(db)) {
-        if (amend_fields_list(field_list, get_number_of_fields(db)) != 0) {
+    if ((current = get_number_of_fields_list(*field_list)) < get_number_of_fields(db)) {
+        if (amend_fields_list(*field_list, get_number_of_fields(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "could not amend fields\r\n");
             *code = 500;
             return returnbuffer;
@@ -228,7 +228,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *c
         return returnbuffer;
     }
 
-    fields_list *list = field_list;
+    fields_list *list = *field_list;
 
     int planted = 0;
 
@@ -308,7 +308,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list *field_list, const char *c
     return returnbuffer;
 }
 
-struct evbuffer *buy_field(sqlite3 *db, fields_list *field_list, int *code) {
+struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
     if (db == NULL) {
@@ -351,11 +351,11 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list *field_list, int *code) {
     }
 
     if (current == 0) {
-        field_list = make_fields_list(get_number_of_fields(db));
+        *field_list = make_fields_list(get_number_of_fields(db));
 
         //get the sql in shape
         int fields = get_number_of_fields(db);
-        fields_list *list = field_list;
+        fields_list *list = *field_list;
         for (int i = 0; i < fields; i++) {
             if (add_field(db, list->field_number) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
@@ -365,7 +365,7 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list *field_list, int *code) {
         }
     }
     else {
-        if (amend_fields_list(field_list, get_number_of_fields(db)) != 0) {
+        if (amend_fields_list(*field_list, get_number_of_fields(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "error amending field list\r\n");
             *code = 500;
             return returnbuffer;
