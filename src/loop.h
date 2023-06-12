@@ -49,6 +49,7 @@ This file is part of farmd.
 #include "field.h"
 #include "tree.h"
 #include "econ.h"
+#include "skill.h"
 
 typedef struct _events_box events_box;
 

@@ -19,12 +19,6 @@ This file is part of farmd.
 
 #include "inital_values.h"
 
-#define X(a, b) {a, b}
-const struct dependency_map dep_map[] = {
-    SKILL_DEP_TABLE
-};
-#undef X
-
 int add_inital_save_values(sqlite3 *db) {
 
     int rc;
@@ -255,33 +249,4 @@ int add_inital_save_values(sqlite3 *db) {
     }
 
     return 0;
-}
-
-const char *skill_dep_check(sqlite3 *db, const char *skill) {
-    for (int i = 0; i < (int) (sizeof(dep_map) / sizeof(dep_map[0])); i++) {
-        if (skill == dep_map[i].skill) {
-            if (dep_map[i].dependency != NULL) {
-                if (get_skill_status(db, dep_map[i].dependency) != 0) {
-                    return NULL;
-                }
-                else {
-                    return dep_map[i].dependency;
-                }
-            }
-            else {
-                return NULL;
-            }
-        }
-    }
-    return "Not Found";
-}
-
-const char *skill_sanitize(const char *skill) {
-    for (int i = 0; i < (int) (sizeof(dep_map) / sizeof(dep_map[0])); i++) {
-        if (strcasecmp(skill, dep_map[i].skill) == 0) {
-            return dep_map[i].skill;
-        }
-    }
-
-    return NULL;
 }

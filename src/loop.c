@@ -1246,32 +1246,15 @@ static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
     const char *query = evhttp_uri_get_query(uri_struct);
 
-    const char *sanitized_string = skill_sanitize(query);
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = skill_status(context->db, query, &code);
 
-    if (sanitized_string == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "Skill %s: is not valid\r\n", query);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-    }
-
-    int skill_status = get_skill_status(context->db, sanitized_string);
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "Skill status: %s %d\r\n", sanitized_string, skill_status);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -1460,178 +1443,33 @@ static void buy_skill_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
 
     if (query == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        post_arg = malloc(buffersize);
-        if (post_arg == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, post_arg, buffersize);
-        post_arg[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(post_arg, "") == 0) {
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        post_arg = get_post_args(req);
         query = post_arg;
     }
 
-    const char *sanitized_string;
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = buy_skill(context->db, query, &code);
 
-    if ((sanitized_string = skill_sanitize(query)) == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "failed to buy %s: not valid\r\n", query);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        return;
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
+
+    if (post_arg != NULL) {
+        free(post_arg);
     }
 
-    if (strcasecmp(sanitized_string, "Fields") == 0) {
-        //limit is 1 per level
-        if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            return;
-        }
-    }
-    else if (strcasecmp(sanitized_string, "TreePlots") == 0) {
-        //limit is 1 per level
-        if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            return;
-        }
-    }
-    else if (get_skill_status(context->db, sanitized_string) > 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "already own skill: %s\r\n", sanitized_string);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        return;
-    }
 
-    //depenacny checking
-    const char *reason = skill_dep_check(context->db, sanitized_string);
-    if (reason != NULL) {
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "dependency needed: %s\r\n", reason);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    int skill_points = get_skill_points(context->db);
-    if (skill_points < 1) {
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "not enough skill points\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-    if (update_meta(context->db, -1, "SkillPoints") == 0) {
-        if (update_skill_tree(context->db, sanitized_string) != 0) {
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error adding skill\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else {
-        if (post_arg != NULL) {
-            free(post_arg);
-        }
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "error subtracting skill points\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return; 
-    }
-
-    //unlock the item in storage
-    enum storage store = get_storage_type_string(sanitized_string);
-    if (store == SILO) {
-        if (check_silo_item_status(context->db, sanitized_string) == LOCKED) {
-            if (update_silo_status(context->db, sanitized_string, UNLOCKED) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-        }
-    }
-    else if (store == BARN) {
-        if (check_barn_item_status(context->db, sanitized_string) == LOCKED) {
-            if (update_barn_status(context->db, sanitized_string, UNLOCKED) != 0) {
-                struct evbuffer *returnbuffer = evbuffer_new();
-                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                return;
-            }
-        }
-    }
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "sucessfully bought skill: %s\r\n", sanitized_string);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
     if (post_arg != NULL) {
         free(post_arg);
     }
-    return;
 }
 
 static void plant_tree_cb(struct evhttp_request *req, void *arg) {
