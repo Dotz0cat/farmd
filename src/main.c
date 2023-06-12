@@ -19,12 +19,12 @@ This file is part of farmd.
 
 #include "main.h"
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
     int opt = 0;
 
-    char* config = NULL;
-    char* save = NULL;
+    char *config = NULL;
+    char *save = NULL;
 
     while((opt = getopt(argc, argv, "vc:s:")) != -1) {
         switch(opt) {
@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    loop_context* context;
+    loop_context *context;
     context = malloc(sizeof(loop_context));
 
     context->pre_init_info = pre_init(config, save);
@@ -112,20 +112,20 @@ static void init_daemon(void) {
     openlog("farmd", LOG_PID, LOG_DAEMON);
 }
 
-static pre_init_stuff* pre_init(char* config, char* save) {
-    pre_init_stuff* info = malloc(sizeof(pre_init_stuff));
+static pre_init_stuff *pre_init(char *config, char *save) {
+    pre_init_stuff *info = malloc(sizeof(pre_init_stuff));
 
-    char* home = getenv("HOME");
+    char *home = getenv("HOME");
 
     if (home == NULL) {
         uid_t uid = getuid();
-        struct passwd* pw = getpwuid(uid);
+        struct passwd *pw = getpwuid(uid);
         home = pw->pw_dir;
     }
 
     info->home = strdup(home);
 
-    char* xdg_config_home = getenv("XDG_CONFIG_HOME");
+    char *xdg_config_home = getenv("XDG_CONFIG_HOME");
 
     if (xdg_config_home != NULL) {
         info->xdg_config_home = strdup(xdg_config_home);

@@ -26,14 +26,14 @@ This file is part of farmd.
 #include "save.h"
 #include "list.h"
 
-struct evbuffer* barn_query(sqlite3* db, const char* item, int* code);
+struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
 
-struct evbuffer* barn_allocation(sqlite3* db, int* code);
+struct evbuffer *barn_allocation(sqlite3 *db, int *code);
 
-struct evbuffer* barn_max(sqlite3* db, int* code);
+struct evbuffer *barn_max(sqlite3 *db, int *code);
 
-struct evbuffer* barn_level(sqlite3* db, int* code);
+struct evbuffer *barn_level(sqlite3 *db, int *code);
 
-struct evbuffer* upgrade_barn(sqlite3* db, int* code);
+struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
 
 #endif /* BARN_H */

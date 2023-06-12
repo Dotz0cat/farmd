@@ -48,42 +48,42 @@ This file is part of farmd.
 typedef struct _events_box events_box;
 
 struct _events_box {
-    struct event_base* base;
-    struct event* signal_sigquit;
-    struct event* signal_sigterm;
-    struct event* signal_sigint;
-    struct event* signal_sighup;
-    struct event* signal_sigusr1;
-    struct event* signal_sigusr2;
-    struct evhttp* http_base;
-    struct evhttp* https_base;
-    struct evhttp_bound_socket* http_socket;
-    struct evhttp_bound_socket* https_socket;
+    struct event_base *base;
+    struct event *signal_sigquit;
+    struct event *signal_sigterm;
+    struct event *signal_sigint;
+    struct event *signal_sighup;
+    struct event *signal_sigusr1;
+    struct event *signal_sigusr2;
+    struct evhttp *http_base;
+    struct evhttp *https_base;
+    struct evhttp_bound_socket *http_socket;
+    struct evhttp_bound_socket *https_socket;
 };
 
 typedef struct _loop_context loop_context;
 
 struct _loop_context {
-    pre_init_stuff* pre_init_info;
+    pre_init_stuff *pre_init_info;
 
-    events_box* event_box;
+    events_box *event_box;
 
-    sqlite3* db;
+    sqlite3 *db;
 
-    fields_list* field_list;
+    fields_list *field_list;
 
-    trees_list* tree_list;
+    trees_list *tree_list;
 
-    SSL_CTX* ssl_ctx;
+    SSL_CTX *ssl_ctx;
 };
 
 //bespoke struct just so I can pass 2 pointers with one
 struct box_for_list_and_db {
-    void* list;
+    void *list;
 
-    sqlite3* db;
+    sqlite3 *db;
 };
 
-void loop_run(loop_context* context);
+void loop_run(loop_context *context);
 
 #endif /* LOOP_H */

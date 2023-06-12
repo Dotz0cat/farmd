@@ -19,8 +19,8 @@ This file is part of farmd.
 
 #include "silo.h"
 
-struct evbuffer* silo_query(sqlite3* db, const char* item, int* code) {
-    struct evbuffer* returnbuffer = evbuffer_new();
+struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     int number_of_items = silo_query_db(db, item);
 
@@ -31,7 +31,7 @@ struct evbuffer* silo_query(sqlite3* db, const char* item, int* code) {
     return returnbuffer;
 }
 
-struct evbuffer* silo_allocation(sqlite3* db, int* code) {
+struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
     int max = get_silo_max(db);
 
     int used = get_silo_allocation(db);
@@ -40,7 +40,7 @@ struct evbuffer* silo_allocation(sqlite3* db, int* code) {
 
     allocation = allocation * 100;
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "silo used: %.2f%%\r\n", allocation);
 
     *code = 200;
@@ -48,10 +48,10 @@ struct evbuffer* silo_allocation(sqlite3* db, int* code) {
     return returnbuffer;
 }
 
-struct evbuffer* silo_max(sqlite3* db, int* code) {
+struct evbuffer *silo_max(sqlite3 *db, int *code) {
     int max = get_silo_max(db);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Silo max: %d\r\n", max);
 
     *code = 200;
@@ -59,10 +59,10 @@ struct evbuffer* silo_max(sqlite3* db, int* code) {
     return returnbuffer;
 }
 
-struct evbuffer* silo_level(sqlite3* db, int* code) {
+struct evbuffer *silo_level(sqlite3 *db, int *code) {
     int barn_level = get_silo_meta_property(db, "Level");
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Silo Level: %d\r\n", barn_level);
 
     *code = 200;
@@ -70,8 +70,8 @@ struct evbuffer* silo_level(sqlite3* db, int* code) {
     return returnbuffer;
 }
 
-struct evbuffer* upgrade_silo(sqlite3* db, int* code) {
-    struct evbuffer* returnbuffer = evbuffer_new();
+struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
     //get current
     int current_level = get_silo_meta_property(db, "Level");
 
@@ -95,7 +95,7 @@ struct evbuffer* upgrade_silo(sqlite3* db, int* code) {
     money_amount = (500 * current_level);
 
     //name lookup
-    const char* upgrade_item = special_item_enum_to_string(SILO_UPGRADE_ITEM);
+    const char *upgrade_item = special_item_enum_to_string(SILO_UPGRADE_ITEM);
     //type lookup even though it will be barn
     enum storage store = get_storage_type_special(SILO_UPGRADE_ITEM);
 

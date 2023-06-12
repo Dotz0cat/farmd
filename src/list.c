@@ -17,25 +17,25 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "list.h"
+#include "list_private.h"
 
 //enum, string, time, buy, sell, storage, item_type
 #define X(a, b, c, d, e, f, g) [a]=b
-const char* field_crop_strings[] = {
+const char *field_crop_strings[] = {
     FIELD_CROP_TABLE
 };
 #undef X
 
 //enum, string, time, buy, sell, storage, item_type, maturity time
 #define X(a, b, c, d, e, f, g, h) [a]=b
-const char* tree_crop_strings[] = {
+const char *tree_crop_strings[] = {
     TREE_CROP_TABLE
 };
 #undef X
 
 //enum, string, buy, sell, item_type, storage
 #define X(a, b, c, d, e, f) [a]=b
-const char* special_item_strings[] = {
+const char *special_item_strings[] = {
     SPECIAL_ITEM_TABLE
 };
 #undef X
@@ -126,9 +126,9 @@ const enum item_type special_item_type[] = {
 };
 #undef X
 
-static fields_list* add_field_to_list(fields_list* prev, int field_number) {
+static fields_list *add_field_to_list(fields_list *prev, int field_number) {
     if (prev == NULL) {
-        fields_list* list = malloc(sizeof(fields_list));
+        fields_list *list = malloc(sizeof(fields_list));
 
         list->next = NULL;
 
@@ -143,7 +143,7 @@ static fields_list* add_field_to_list(fields_list* prev, int field_number) {
         return list;
     }
     else {
-        fields_list* list = malloc(sizeof(fields_list));
+        fields_list *list = malloc(sizeof(fields_list));
 
         prev->next = list;
 
@@ -161,16 +161,16 @@ static fields_list* add_field_to_list(fields_list* prev, int field_number) {
     }
 }
 
-fields_list* make_fields_list(const int number_of_fields) {
+fields_list *make_fields_list(const int number_of_fields) {
     if (number_of_fields == 0) {
         return NULL;
     }
-    fields_list* list = NULL;
+    fields_list *list = NULL;
 
     list = add_field_to_list(list, 0);
     int i = 1;
 
-    fields_list* add_head = list;
+    fields_list *add_head = list;
 
     for (; i < number_of_fields; i++) {
         add_head = add_field_to_list(add_head, i);
@@ -179,7 +179,7 @@ fields_list* make_fields_list(const int number_of_fields) {
     return list;
 }
 
-static fields_list* wind_fields_to_tail(fields_list* list) {
+static fields_list *wind_fields_to_tail(fields_list *list) {
     while (list->next != NULL) {
         list = list->next;
     }
@@ -187,14 +187,14 @@ static fields_list* wind_fields_to_tail(fields_list* list) {
     return list;
 }
 
-int amend_fields_list(fields_list* head, int new_number) {
+int amend_fields_list(fields_list *head, int new_number) {
     int old_number = get_number_of_fields_list(head);
 
     if (new_number <= old_number) {
         //cannot sell fields
         return -1;
     }
-    fields_list* list = head;
+    fields_list *list = head;
 
     list = wind_fields_to_tail(list);
 
@@ -205,9 +205,9 @@ int amend_fields_list(fields_list* head, int new_number) {
     return 0;
 }
 
-int get_number_of_fields_list(fields_list* head) {
+int get_number_of_fields_list(fields_list *head) {
     int number_of_fields = 0;
-    fields_list* count_head = head;
+    fields_list *count_head = head;
     do {
         number_of_fields++;
         count_head = count_head->next;
@@ -216,15 +216,15 @@ int get_number_of_fields_list(fields_list* head) {
     return number_of_fields;
 }
 
-void set_field_event_pointer(fields_list* list, void* event) {
+void set_field_event_pointer(fields_list *list, void *event) {
     list->event = event;
 } 
 
-const char* field_crop_enum_to_string(const enum field_crop type) {
+const char *field_crop_enum_to_string(const enum field_crop type) {
     return field_crop_strings[type];
 }
 
-enum field_crop field_crop_string_to_enum(const char* type) {
+enum field_crop field_crop_string_to_enum(const char *type) {
     for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
         if (strcasecmp(type, field_crop_strings[i]) == 0) {
             return i;
@@ -234,9 +234,9 @@ enum field_crop field_crop_string_to_enum(const char* type) {
     return NONE_FIELD;
 }
 
-static trees_list* add_tree_to_list(trees_list* prev, int tree_number) {
+static trees_list *add_tree_to_list(trees_list *prev, int tree_number) {
     if (prev == NULL) {
-        trees_list* new = malloc(sizeof(trees_list));
+        trees_list *new = malloc(sizeof(trees_list));
 
         new->type = NONE_TREE;
 
@@ -249,7 +249,7 @@ static trees_list* add_tree_to_list(trees_list* prev, int tree_number) {
         return new;
     }
     else {
-        trees_list* new = malloc(sizeof(trees_list));
+        trees_list *new = malloc(sizeof(trees_list));
 
         new->type = NONE_TREE;
 
@@ -265,17 +265,17 @@ static trees_list* add_tree_to_list(trees_list* prev, int tree_number) {
     }
 }
 
-trees_list* make_trees_list(const int number_of_trees) {
+trees_list *make_trees_list(const int number_of_trees) {
     if (number_of_trees == 0) {
         return NULL;
     }
 
-    trees_list* list = NULL;
+    trees_list *list = NULL;
 
     list = add_tree_to_list(list, 0);
     int i = 1;
 
-    trees_list* add_head = list;
+    trees_list *add_head = list;
 
     for (; i < number_of_trees; i++) {
         add_head = add_tree_to_list(add_head, i);
@@ -284,8 +284,8 @@ trees_list* make_trees_list(const int number_of_trees) {
     return list;
 }
 
-static trees_list* wind_trees_to_tail(trees_list* head) {
-    trees_list* list = head;
+static trees_list *wind_trees_to_tail(trees_list *head) {
+    trees_list *list = head;
 
     while (list->next != NULL) {
         list = list->next;
@@ -294,14 +294,14 @@ static trees_list* wind_trees_to_tail(trees_list* head) {
     return list;
 }
 
-int amend_trees_list(trees_list* head, const int new_number) {
+int amend_trees_list(trees_list *head, const int new_number) {
     int old_number = get_number_of_trees_list(head);
 
     if (new_number <= old_number) {
         return -1;
     }
 
-    trees_list* list = head;
+    trees_list *list = head;
 
     list = wind_trees_to_tail(list);
 
@@ -312,9 +312,9 @@ int amend_trees_list(trees_list* head, const int new_number) {
     return 0;
 }
 
-int get_number_of_trees_list(trees_list* head) {
+int get_number_of_trees_list(trees_list *head) {
     int count = 0;
-    trees_list* count_head = head;
+    trees_list *count_head = head;
 
     do {
         count++;
@@ -324,15 +324,15 @@ int get_number_of_trees_list(trees_list* head) {
     return count;
 }
 
-void set_trees_event_pointer(trees_list* node, void* event) {
+void set_trees_event_pointer(trees_list *node, void *event) {
     node->event = event;
 }
 
-const char* tree_crop_enum_to_string(const enum tree_crop type) {
+const char *tree_crop_enum_to_string(const enum tree_crop type) {
     return tree_crop_strings[type];
 }
 
-enum tree_crop tree_crop_string_to_enum(const char* type) {
+enum tree_crop tree_crop_string_to_enum(const char *type) {
     for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
         if (strcasecmp(type, tree_crop_strings[i]) == 0) {
             return i;
@@ -342,7 +342,7 @@ enum tree_crop tree_crop_string_to_enum(const char* type) {
     return NONE_TREE;
 }
 
-enum storage get_storage_type_string(const char* string) {
+enum storage get_storage_type_string(const char *string) {
     if (strcasecmp(string, "none") == 0) {
         return NONE_STORAGE;
     }
@@ -404,7 +404,7 @@ int special_item_sell_cost(const enum special_item item) {
     return special_item_sell_cost_table[item];
 }
 
-enum item_type get_product_type_string(const char* string) {
+enum item_type get_product_type_string(const char *string) {
     if (strcasecmp(string, "none") == 0) {
         return NONE_PRODUCT;
     }
@@ -442,7 +442,7 @@ enum item_type get_product_type_special(const enum special_item type) {
     return special_item_type[type];
 }
 
-enum special_item special_item_string_to_enum(const char* string) {
+enum special_item special_item_string_to_enum(const char *string) {
     for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
         if (strcasecmp(string, special_item_strings[i]) == 0) {
             return i;
@@ -452,6 +452,6 @@ enum special_item special_item_string_to_enum(const char* string) {
     return NONE_SPECIAL;
 }
 
-const char* special_item_enum_to_string(const enum special_item item) {
+const char *special_item_enum_to_string(const enum special_item item) {
     return special_item_strings[item];
 }

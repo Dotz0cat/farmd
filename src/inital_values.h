@@ -61,12 +61,12 @@ X("beetSugar", "SugarMill"), \
 X("caneSugar", "SugarMill")
 
 struct dependency_map {
-    const char* skill;
-    const char* dependency;
+    const char *skill;
+    const char *dependency;
 };
 
-int add_inital_save_values(sqlite3* db);
-const char* skill_dep_check(sqlite3* db, const char* skill);
-const char* skill_sanitize(const char* skill);
+int add_inital_save_values(sqlite3 *db);
+const char *skill_dep_check(sqlite3 *db, const char *skill);
+const char *skill_sanitize(const char *skill);
 
 #endif /* INITAL_VALUES_H */

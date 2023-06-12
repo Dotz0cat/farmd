@@ -17,21 +17,21 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "config.h"
+#include "config_private.h"
 
-config_settings* config_parse(const char* config_location, const char* homedir, const char* xdg_config_home) {
-    config_settings* settings = malloc(sizeof(config_settings));
+config_settings *config_parse(const char *config_location, const char *homedir, const char *xdg_config_home) {
+    config_settings *settings = malloc(sizeof(config_settings));
 
     int http_port;
     int https_port;
     int https_enable;
     int https_only;
-    const char* pub_key_location;
-    const char* priv_key_location;
-    const char* save_location;
+    const char *pub_key_location;
+    const char *priv_key_location;
+    const char *save_location;
 
     if (file_exsits(config_location) != 0) {
-        char* xdg_config_home_folder;
+        char *xdg_config_home_folder;
 
         if (xdg_config_home != NULL && strcmp(xdg_config_home, "") != 0) {
             xdg_config_home_folder = strdup(xdg_config_home);
@@ -43,7 +43,7 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
                 //tough luck
                 abort();
             }
-            char* config_folder = malloc(char_count + 1U);
+            char *config_folder = malloc(char_count + 1U);
 
             if (config_folder == NULL) {
                 //tough luck
@@ -66,7 +66,7 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
             abort();
         }
         
-        char* farmd_config_folder = malloc(char_count + 1U);
+        char *farmd_config_folder = malloc(char_count + 1U);
 
         if (farmd_config_folder == NULL) {
             abort();
@@ -162,8 +162,8 @@ config_settings* config_parse(const char* config_location, const char* homedir, 
 }
 
 //0 if exsits 1 if not
-static inline int file_exsits(const char* file) {
-    FILE* fp;
+static inline int file_exsits(const char *file) {
+    FILE *fp;
 
     if ((fp = fopen(file, "r"))) {
         fclose(fp);
@@ -174,8 +174,8 @@ static inline int file_exsits(const char* file) {
     }
 }
 
-static inline int folder_exsits(const char* folder) {
-    DIR* dir;
+static inline int folder_exsits(const char *folder) {
+    DIR *dir;
 
     dir = opendir(folder);
 
@@ -188,21 +188,21 @@ static inline int folder_exsits(const char* folder) {
     }
 }
 
-static void make_default_config(const char* output_file) {
+static void make_default_config(const char *output_file) {
     config_t cfg;
 
     config_init(&cfg);
 
-    config_setting_t* root;
+    config_setting_t *root;
 
     root = config_root_setting(&cfg);
 
-    config_setting_t* https_enable;
+    config_setting_t *https_enable;
 
     https_enable = config_setting_add(root, "enable_https", CONFIG_TYPE_BOOL);
     config_setting_set_bool(https_enable, CONFIG_FALSE);
 
-    config_setting_t* port;
+    config_setting_t *port;
 
     port = config_setting_add(root, "port", CONFIG_TYPE_INT);
     config_setting_set_int(port, 8080);
@@ -215,7 +215,7 @@ static void make_default_config(const char* output_file) {
     config_destroy(&cfg);
 }
 
-void free_pre_init_stuff(pre_init_stuff* pre_init) {
+void free_pre_init_stuff(pre_init_stuff *pre_init) {
     if (pre_init != NULL) {
         if (pre_init->save != NULL) {
             free(pre_init->save);
@@ -241,7 +241,7 @@ void free_pre_init_stuff(pre_init_stuff* pre_init) {
     }
 }
 
-void free_config_settings(config_settings* settings) {
+void free_config_settings(config_settings *settings) {
     if (settings != NULL) {
         if (settings->save_location != NULL) {
             free(settings->save_location);

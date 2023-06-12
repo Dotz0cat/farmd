@@ -17,23 +17,15 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef SILO_H
-#define SILO_H
 
-#include <event2/event.h>
-#include <event2/buffer.h>
+#ifndef LIST_PRIVATE_H
+#define LIST_PRIVATE_H
 
-#include "save.h"
 #include "list.h"
 
-struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code);
+static fields_list *add_field_to_list(fields_list *prev, int field_number);
+static fields_list *wind_fields_to_tail(fields_list *list);
+static trees_list *add_tree_to_list(trees_list *prev, int tree_number);
+static trees_list *wind_trees_to_tail(trees_list *head);
 
-struct evbuffer *silo_allocation(sqlite3 *db, int *code);
-
-struct evbuffer *silo_max(sqlite3 *db, int *code);
-
-struct evbuffer *silo_level(sqlite3 *db, int *code);
-
-struct evbuffer *upgrade_silo(sqlite3 *db, int *code);
-
-#endif /* SILO_H */
+#endif /* LIST_PRIVATE_H */

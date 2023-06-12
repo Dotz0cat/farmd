@@ -40,7 +40,7 @@ const struct timeval tree_maturity_time[] = {
 };
 #undef X
 
-void loop_run(loop_context* context) {
+void loop_run(loop_context *context) {
 
     // event_enable_debug_logging(EVENT_LOG_DEBUG);
     // event_set_log_callback(logging_cb);
@@ -178,7 +178,7 @@ void loop_run(loop_context* context) {
     return;
 }
 
-static void set_callbacks(struct evhttp* base, loop_context* context) {
+static void set_callbacks(struct evhttp *base, loop_context *context) {
     evhttp_set_gencb(base, generic_http_cb, context);
 
     if (evhttp_set_cb(base, "/barn/query", barn_query_cb, context)) {
@@ -372,16 +372,16 @@ static void set_callbacks(struct evhttp* base, loop_context* context) {
     }
 }
 
-static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void* user_data) {
-    loop_context* context = user_data;
+static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void *user_data) {
+    loop_context *context = user_data;
 
     struct timeval delay = {1, 0};
 
     event_base_loopexit(context->event_box->base, &delay);
 }
 
-static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
-    loop_context* context = user_data;
+static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
+    loop_context *context = user_data;
 
     //cache port
 
@@ -389,7 +389,7 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
     int https_port = context->pre_init_info->settings->https_port;
     int https_only = context->pre_init_info->settings->https_only;
     int https_enable = context->pre_init_info->settings->https_enable;
-    char* pub_key;
+    char *pub_key;
     if (context->pre_init_info->settings->pub_key != NULL) {
         pub_key  = strdup(context->pre_init_info->settings->pub_key);
     }
@@ -397,7 +397,7 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
         pub_key = NULL;
     }
 
-    char* priv_key;
+    char *priv_key;
     if (context->pre_init_info->settings->priv_key != NULL) {
         priv_key = strdup(context->pre_init_info->settings->priv_key);
     }
@@ -415,7 +415,7 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
         if (https_enable == context->pre_init_info->settings->https_enable) {
             //reload socket if the port has changed
             if (https_port != context->pre_init_info->settings->https_port) {
-                struct evhttp_bound_socket* socket = make_https_socket(context);
+                struct evhttp_bound_socket *socket = make_https_socket(context);
 
                 evhttp_del_accept_socket(context->event_box->https_base, context->event_box->https_socket);
 
@@ -476,7 +476,7 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
         if (https_only == 0 && context->pre_init_info->settings->https_only == 0) {
             //reload socket if the port has changed
             if (http_port != context->pre_init_info->settings->http_port) {
-                struct evhttp_bound_socket* socket = make_http_socket(context);
+                struct evhttp_bound_socket *socket = make_http_socket(context);
 
                 evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
 
@@ -507,7 +507,7 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
         else {
             //reload socket if the port has changed
             if (http_port != context->pre_init_info->settings->http_port) {
-                struct evhttp_bound_socket* socket = make_http_socket(context);
+                struct evhttp_bound_socket *socket = make_http_socket(context);
 
                 evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
 
@@ -545,15 +545,15 @@ static void sighup_cb(evutil_socket_t sig, short events, void* user_data) {
     return;
 }
 
-static void sigusr1_cb(evutil_socket_t sig, short events, void* user_data) {
+static void sigusr1_cb(evutil_socket_t sig, short events, void *user_data) {
     return;
 }
 
-static void sigusr2_cb(evutil_socket_t sig, short events, void* user_data) {
+static void sigusr2_cb(evutil_socket_t sig, short events, void *user_data) {
     return;
 }
 
-static struct evhttp_bound_socket* make_http_socket(loop_context* context) {
+static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sock < 0) {
@@ -595,7 +595,7 @@ static struct evhttp_bound_socket* make_http_socket(loop_context* context) {
     return evhttp_accept_socket_with_handle(context->event_box->http_base, sock);
 }
 
-static struct evhttp_bound_socket* make_https_socket(loop_context* context) {
+static struct evhttp_bound_socket *make_https_socket(loop_context *context) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sock < 0) {
@@ -637,29 +637,29 @@ static struct evhttp_bound_socket* make_https_socket(loop_context* context) {
     return evhttp_accept_socket_with_handle(context->event_box->https_base, sock);
 }
 
-static struct bufferevent* make_ssl_bufferevent(struct event_base* base, void* user_data) {
-    loop_context* context = user_data;
+static struct bufferevent *make_ssl_bufferevent(struct event_base *base, void *user_data) {
+    loop_context *context = user_data;
 
-    struct evhttp_bound_socket* sock = context->event_box->https_socket;
+    struct evhttp_bound_socket *sock = context->event_box->https_socket;
 
-    SSL* ssl = SSL_new(context->ssl_ctx);
+    SSL *ssl = SSL_new(context->ssl_ctx);
 
-    struct bufferevent* bev = bufferevent_openssl_socket_new(base, evhttp_bound_socket_get_fd(sock), ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+    struct bufferevent *bev = bufferevent_openssl_socket_new(base, evhttp_bound_socket_get_fd(sock), ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
 
     bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
     
     return bev;
 }
 
-static void generic_http_cb(struct evhttp_request* req, void* arg) {
-    struct evbuffer* returnbuffer = evbuffer_new();
+static void generic_http_cb(struct evhttp_request *req, void *arg) {
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "nothing available at %s\r\n", evhttp_request_get_uri(req));
     evhttp_send_reply(req, HTTP_NOTFOUND, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void barn_query_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void barn_query_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -667,28 +667,28 @@ static void barn_query_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri_struct);
+    const char *query = evhttp_uri_get_query(uri_struct);
     
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = barn_query(context->db, query, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void silo_query_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void silo_query_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -696,28 +696,28 @@ static void silo_query_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri_struct);
+    const char *query = evhttp_uri_get_query(uri_struct);
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = silo_query(context->db, query, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void create_save_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void create_save_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -725,26 +725,26 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db != NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* file_name = evhttp_uri_get_query(uri_struct);
-    char* filename = NULL;
+    const char *file_name = evhttp_uri_get_query(uri_struct);
+    char *filename = NULL;
 
     if (file_name == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         filename = malloc(buffersize);
         if (filename == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -757,7 +757,7 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -772,7 +772,7 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to create new save at %s\r\n", file_name);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -783,7 +783,7 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to open new save at %s for inital settings\r\n", file_name);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -794,7 +794,7 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to add inital settings\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -807,14 +807,14 @@ static void create_save_cb(struct evhttp_request* req, void* arg) {
         free(filename);
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "new save created at %s\r\n", file_name);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void open_save_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void open_save_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -822,26 +822,26 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db != NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "save already open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* file_name = evhttp_uri_get_query(uri_struct);
-    char* filename = NULL;
+    const char *file_name = evhttp_uri_get_query(uri_struct);
+    char *filename = NULL;
 
     if (file_name == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         filename = malloc(buffersize);
         if (filename == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -854,7 +854,7 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -868,7 +868,7 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
         if (filename != NULL) {
             free(filename);
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "failed to open save at %s\r\n", file_name);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -879,14 +879,14 @@ static void open_save_cb(struct evhttp_request* req, void* arg) {
         free(filename);
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "save opened\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void close_save_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void close_save_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -894,7 +894,7 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -903,14 +903,14 @@ static void close_save_cb(struct evhttp_request* req, void* arg) {
 
     close_save(context);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "save closed\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void ping_save_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void ping_save_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -919,19 +919,19 @@ static void ping_save_cb(struct evhttp_request* req, void* arg) {
 
     //save open check here if implented
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* file_name = evhttp_uri_get_query(uri_struct);
-    char* filename = NULL;
+    const char *file_name = evhttp_uri_get_query(uri_struct);
+    char *filename = NULL;
 
     if (file_name == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         filename = malloc(buffersize);
         if (filename == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -944,7 +944,7 @@ static void ping_save_cb(struct evhttp_request* req, void* arg) {
             if (filename != NULL) {
                 free(filename);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -957,7 +957,7 @@ static void ping_save_cb(struct evhttp_request* req, void* arg) {
         if (filename != NULL) {
             free(filename);
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "error pinging save\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -967,13 +967,13 @@ static void ping_save_cb(struct evhttp_request* req, void* arg) {
         free(filename);
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "save pinged\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static int open_save(const char* file_name, loop_context* context) {
+static int open_save(const char *file_name, loop_context *context) {
     int rc = open_save_db(file_name, &context->db);
     if (rc != 0) {
         return rc;
@@ -985,11 +985,11 @@ static int open_save(const char* file_name, loop_context* context) {
     //populate fields
     int fields = get_number_of_fields(context->db);
     if (fields > 0) {
-        fields_list* list = context->field_list;
+        fields_list *list = context->field_list;
         for (int i = 0; i < fields; i++) {
-            const char* field_type = get_field_type(context->db, i);
+            const char *field_type = get_field_type(context->db, i);
             list->type = field_crop_string_to_enum(field_type);
-            free((char*) field_type);
+            free((char *) field_type);
 
             if (list->type != NONE_FIELD) {
 
@@ -1003,7 +1003,7 @@ static int open_save(const char* file_name, loop_context* context) {
                         tv.tv_sec = time_from_db - now;
                         tv.tv_usec = 0;
 
-                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                         box->list = list;
                         box->db = context->db;
                         list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, box);
@@ -1031,11 +1031,11 @@ static int open_save(const char* file_name, loop_context* context) {
     //populate trees
     int trees = get_number_of_tree_plots(context->db);
     if (trees > 0) {
-        trees_list* list = context->tree_list;
+        trees_list *list = context->tree_list;
         for (int i = 0; i < trees; i++) {
-            const char* tree_type = get_tree_type(context->db, i);
+            const char *tree_type = get_tree_type(context->db, i);
             list->type = tree_crop_string_to_enum(tree_type);
-            free((char*) tree_type);
+            free((char *) tree_type);
             //events here later
 
             if (list->type != NONE_TREE) {
@@ -1051,7 +1051,7 @@ static int open_save(const char* file_name, loop_context* context) {
                         tv.tv_sec = time_from_db - now;
                         tv.tv_usec = 0;
 
-                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                         box->list = list;
                         box->db = context->db;
                         list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
@@ -1082,7 +1082,7 @@ static int open_save(const char* file_name, loop_context* context) {
                         tv.tv_sec = time_from_db - now;
                         tv.tv_usec = 0;
 
-                        struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                         box->list = list;
                         box->db = context->db;
                         list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
@@ -1107,7 +1107,7 @@ static int open_save(const char* file_name, loop_context* context) {
     return 0;
 }
 
-static int create_save(const char* file_name, loop_context* context) {
+static int create_save(const char *file_name, loop_context *context) {
     int rc = create_save_db(file_name);
     if (rc != 0) {
         return 1;
@@ -1129,23 +1129,23 @@ static int create_save(const char* file_name, loop_context* context) {
     return 0;
 }
 
-static int close_save(loop_context* context) {
+static int close_save(loop_context *context) {
     close_save_db(context->db);
     context->db = NULL;
 
     //free fields
     if (context->field_list != NULL) {
-        fields_list* field_list = context->field_list;
+        fields_list *field_list = context->field_list;
         while (field_list != NULL) {
             if (field_list->event != NULL) {
                 event_del(field_list->event);
-                void* temp;
+                void *temp;
                 if ((temp = event_get_callback_arg(field_list->event)) != NULL) {
                     free(temp);
                 }
                 event_free(field_list->event);
             }
-            fields_list* temp = field_list;
+            fields_list *temp = field_list;
             field_list = field_list->next;
             free(temp);
         }
@@ -1153,17 +1153,17 @@ static int close_save(loop_context* context) {
 
     //free trees
     if (context->tree_list != NULL) {
-        trees_list* tree_list = context->tree_list;
+        trees_list *tree_list = context->tree_list;
         while (tree_list != NULL) {
             if (tree_list->event != NULL) {
                 event_del(tree_list->event);
-                void* temp;
+                void *temp;
                 if ((temp = event_get_callback_arg(tree_list->event)) != NULL) {
                     free(temp);
                 }
                 event_free(tree_list->event);
             }
-            trees_list* temp = tree_list;
+            trees_list *temp = tree_list;
             tree_list = tree_list->next;
             free(temp);
         }
@@ -1172,8 +1172,8 @@ static int close_save(loop_context* context) {
     return 0;
 }
 
-static int ping_save(const char* filename) {
-    sqlite3* db;
+static int ping_save(const char *filename) {
+    sqlite3 *db;
     int rc = open_save_db(filename, &db);
 
     if (rc != 0) {
@@ -1183,9 +1183,9 @@ static int ping_save(const char* filename) {
     int fields = get_number_of_fields(db);
     if (fields > 0) {
         for (int i = 0; i < fields; i++) {
-            const char* field_type = get_field_type(db, i);
+            const char *field_type = get_field_type(db, i);
             enum field_crop type = field_crop_string_to_enum(field_type);
-            free((char*) field_type);
+            free((char *) field_type);
 
             if (type != NONE_FIELD) {
 
@@ -1205,9 +1205,9 @@ static int ping_save(const char* filename) {
     int trees = get_number_of_tree_plots(db);
     if (trees > 0) {
         for (int i = 0; i < trees; i++) {
-            const char* tree_type = get_tree_type(db, i);
+            const char *tree_type = get_tree_type(db, i);
             enum tree_crop type = tree_crop_string_to_enum(tree_type);
-            free((char*) tree_type);
+            free((char *) tree_type);
 
             if (type != NONE_TREE) {
                 int set_maturity = 0;
@@ -1242,8 +1242,8 @@ static int ping_save(const char* filename) {
     return 0;
 }
 
-static void get_barn_allocation_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_barn_allocation_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1251,7 +1251,7 @@ static void get_barn_allocation_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1260,15 +1260,15 @@ static void get_barn_allocation_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = barn_allocation(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_silo_allocation_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_silo_allocation_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1276,7 +1276,7 @@ static void get_silo_allocation_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1285,15 +1285,15 @@ static void get_silo_allocation_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = silo_allocation(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_money_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_money_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1301,7 +1301,7 @@ static void get_money_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1310,14 +1310,14 @@ static void get_money_cb(struct evhttp_request* req, void* arg) {
 
     int money = get_money(context->db);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "money: %d\r\n", money);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_level_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_level_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1325,7 +1325,7 @@ static void get_level_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1334,14 +1334,14 @@ static void get_level_cb(struct evhttp_request* req, void* arg) {
 
     int level = get_level(context->db);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "level: %d\r\n", level);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_xp_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_xp_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1349,7 +1349,7 @@ static void get_xp_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1358,14 +1358,14 @@ static void get_xp_cb(struct evhttp_request* req, void* arg) {
 
     int xp = get_xp(context->db);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "xp: %d\r\n", xp);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_skill_points_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_skill_points_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1373,7 +1373,7 @@ static void get_skill_points_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1382,14 +1382,14 @@ static void get_skill_points_cb(struct evhttp_request* req, void* arg) {
 
     int skill_points = get_skill_points(context->db);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Skill points: %d\r\n", skill_points);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_skill_status_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1397,21 +1397,21 @@ static void get_skill_status_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri_struct);
+    const char *query = evhttp_uri_get_query(uri_struct);
 
-    const char* sanitized_string = skill_sanitize(query);
+    const char *sanitized_string = skill_sanitize(query);
 
     if (sanitized_string == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "Skill %s: is not valid\r\n", query);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1419,28 +1419,28 @@ static void get_skill_status_cb(struct evhttp_request* req, void* arg) {
 
     int skill_status = get_skill_status(context->db, sanitized_string);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "Skill status: %s %d\r\n", sanitized_string, skill_status);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_version_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_version_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
         return;
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "farmd version: %s\r\n", VERSION);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_barn_max_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_barn_max_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1448,7 +1448,7 @@ static void get_barn_max_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1456,15 +1456,15 @@ static void get_barn_max_cb(struct evhttp_request* req, void* arg) {
     }
 
     int code = 0;
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = barn_max(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void get_silo_max_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_silo_max_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1472,7 +1472,7 @@ static void get_silo_max_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1480,15 +1480,15 @@ static void get_silo_max_cb(struct evhttp_request* req, void* arg) {
     }
 
     int code = 0;
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = barn_max(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void fields_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void fields_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1496,7 +1496,7 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1504,7 +1504,7 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_fields(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1512,20 +1512,20 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->field_list == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    fields_list* list = context->field_list;
+    fields_list *list = context->field_list;
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     //check for races
     do {
-        char* complete;
+        char *complete;
         if (list->completion == 1) {
             complete = "ready";
             //make sure its right
@@ -1545,8 +1545,8 @@ static void fields_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void fields_harvest_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1554,7 +1554,7 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1562,7 +1562,7 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_fields(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1570,14 +1570,14 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->field_list == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    fields_list* list = context->field_list;
+    fields_list *list = context->field_list;
 
     do {
         if (list->completion == 1 && list->type != NONE_FIELD) {
@@ -1588,14 +1588,14 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                 if (get_silo_allocation(context->db) < (get_silo_max(context->db) - 1)) {
                     if (add_item_to_silo(context->db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
                         //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "silo error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
                         return;
                     }
                     if (update_silo(context->db, field_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "silo error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -1603,7 +1603,7 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                     }
                 }
                 else {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -1615,14 +1615,14 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                 if (get_barn_allocation(context->db) < (get_barn_max(context->db) - 1)) {
                     if (add_item_to_silo(context->db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
                         //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "barn error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
                         return;
                     }
                     if (update_barn(context->db, field_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "barn error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -1630,7 +1630,7 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                     }
                 }
                 else {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to barn size\r\n", list->field_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -1638,7 +1638,7 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "could not harvest field%d due to not being implemented\r\n", list->field_number);
                 evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1662,8 +1662,8 @@ static void fields_harvest_cb(struct evhttp_request* req, void* arg) {
     evhttp_send_reply(req, HTTP_OK, "Client", NULL);
 }
 
-static void plant_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void plant_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1671,7 +1671,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1679,7 +1679,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_fields(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1689,7 +1689,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     if (context->field_list == NULL) {
         context->field_list = make_fields_list(get_number_of_fields(context->db));
         if (context->field_list == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -1697,7 +1697,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
         }
          for (int i = 0; i < get_number_of_fields(context->db); i++) {
             if (add_field(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1710,7 +1710,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     int current = 0;
     if ((current = get_number_of_fields_list(context->field_list)) < get_number_of_fields(context->db)) {
         if (amend_fields_list(context->field_list, get_number_of_fields(context->db)) != 0) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not amend fields\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -1718,7 +1718,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
         }
         for (int i = current; i < get_number_of_fields(context->db); i++) {
             if (add_field(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1728,19 +1728,19 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
         }
     }
 
-    const struct evhttp_uri* uri_struct = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri_struct);
-    char* post_arg = NULL;
+    const char *query = evhttp_uri_get_query(uri_struct);
+    char *post_arg = NULL;
 
     if (query == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         post_arg = malloc(buffersize);
         if (post_arg == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -1753,7 +1753,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -1766,7 +1766,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
 
     type = field_crop_string_to_enum(query);
     if (type == NONE_FIELD) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "%s is not a correct query\r\n", query);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1780,30 +1780,30 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
         free(post_arg);
     }
 
-    const char* sanitized_string = field_crop_enum_to_string(type);
+    const char *sanitized_string = field_crop_enum_to_string(type);
 
     if (get_skill_status(context->db, sanitized_string) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    fields_list* list = context->field_list;
+    fields_list *list = context->field_list;
 
     int planted = 0;
 
     do {
         if (list->type == NONE_FIELD) {
             if (list->event == NULL) {
-                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                 box->list = list;
                 box->db = context->db;
 
                 list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, box);
                 if (list->event == NULL) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -1820,7 +1820,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             if (store == SILO) {
                 if (silo_query_db(context->db, sanitized_string) > 0) {
                     if (update_silo(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -1831,7 +1831,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             else if (store == BARN) {
                 if (barn_query_db(context->db, sanitized_string) > 0) {
                     if (update_barn(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -1841,7 +1841,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             }
             else if (get_money(context->db) > price) {
                 if (update_meta(context->db, (-1 * price), "Money") != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not update money\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -1849,7 +1849,7 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1863,10 +1863,10 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
             //set time it should complete
             set_field_time(context->db, list->field_number, field_time[type].tv_sec);
 
-            const struct timeval* tv = &field_time[type];
+            const struct timeval *tv = &field_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1879,16 +1879,16 @@ static void plant_cb(struct evhttp_request* req, void* arg) {
     } while (list != NULL);
 
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "planted: %d\r\n", planted);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void field_ready_cb(evutil_socket_t fd, short events, void* user_data) {
-    struct box_for_list_and_db* box = user_data;
+static void field_ready_cb(evutil_socket_t fd, short events, void *user_data) {
+    struct box_for_list_and_db *box = user_data;
 
-    fields_list* list = box->list;
+    fields_list *list = box->list;
 
     list->completion = 1;
 
@@ -1897,7 +1897,7 @@ static void field_ready_cb(evutil_socket_t fd, short events, void* user_data) {
     return;
 }
 
-static void xp_check(sqlite3* db) {
+static void xp_check(sqlite3 *db) {
     int level = get_level(db);
     level--;
     //was pow(2, level) * 10;
@@ -1920,8 +1920,8 @@ static void xp_check(sqlite3* db) {
     }
 }
 
-static void buy_field_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void buy_field_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -1929,7 +1929,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1946,7 +1946,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
         if (get_money(context->db) > price) {
             if (update_meta(context->db, (-1 * price), "Money") == 0) {
                 if (update_meta(context->db, 1, "Fields") != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error adding field\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -1955,7 +1955,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1963,7 +1963,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
             }
         }
         else {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -1971,7 +1971,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
         }
     }
     else {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "not high enough skill level to buy field\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -1983,10 +1983,10 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
 
         //get the sql in shape
         int fields = get_number_of_fields(context->db);
-        fields_list* list = context->field_list;
+        fields_list *list = context->field_list;
         for (int i = 0; i < fields; i++) {
             if (add_field(context->db, list->field_number) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -1997,7 +1997,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
     }
     else {
         if (amend_fields_list(context->field_list, get_number_of_fields(context->db)) != 0) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error amending field list\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2006,7 +2006,7 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
         }
         for (int i = current; i < get_number_of_fields(context->db); i++) {
             if (add_field(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2016,15 +2016,15 @@ static void buy_field_cb(struct evhttp_request* req, void* arg) {
         }
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "sucessfully bought field\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
     return;
 }
 
-static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2032,7 +2032,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2048,7 +2048,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
         if (get_money(context->db) > price) {
             if (update_meta(context->db, (-1 * price), "Money") == 0) {
                 if (update_meta(context->db, 1, "TreePlots") != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2057,7 +2057,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2065,7 +2065,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
             }
         }
         else {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "not enough money to buy tree plot\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2073,7 +2073,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
         }
     }
     else {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2084,7 +2084,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
         context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
         for (int i = 0; i < get_number_of_tree_plots(context->db); i++) {
             if (add_tree(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2094,7 +2094,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
     }
     else {
         if (amend_trees_list(context->tree_list, get_number_of_tree_plots(context->db)) != 0) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error amending tree list\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2103,7 +2103,7 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
         }
         for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
             if (add_tree(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2112,15 +2112,15 @@ static void buy_tree_plot_cb(struct evhttp_request* req, void* arg) {
         }
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "sucessfully bought tree plot\r\n");
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
     return;
 }
 
-static void buy_skill_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void buy_skill_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2128,26 +2128,26 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
-    char* post_arg = NULL;
+    const char *query = evhttp_uri_get_query(uri);
+    char *post_arg = NULL;
 
     if (query == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         post_arg = malloc(buffersize);
         if (post_arg == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2160,7 +2160,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2169,10 +2169,10 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         query = post_arg;
     }
 
-    const char* sanitized_string;
+    const char *sanitized_string;
 
     if ((sanitized_string = skill_sanitize(query)) == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "failed to buy %s: not valid\r\n", query);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2185,7 +2185,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     if (strcasecmp(sanitized_string, "Fields") == 0) {
         //limit is 1 per level
         if (get_skill_status(context->db, "Fields") >= get_level(context->db)) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2198,7 +2198,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     else if (strcasecmp(sanitized_string, "TreePlots") == 0) {
         //limit is 1 per level
         if (get_skill_status(context->db, "TreePlots") >= get_level(context->db)) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2209,7 +2209,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         }
     }
     else if (get_skill_status(context->db, sanitized_string) > 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "already own skill: %s\r\n", sanitized_string);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2220,12 +2220,12 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     }
 
     //depenacny checking
-    const char* reason = skill_dep_check(context->db, sanitized_string);
+    const char *reason = skill_dep_check(context->db, sanitized_string);
     if (reason != NULL) {
         if (post_arg != NULL) {
             free(post_arg);
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "dependency needed: %s\r\n", reason);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2237,7 +2237,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         if (post_arg != NULL) {
             free(post_arg);
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "not enough skill points\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2248,7 +2248,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error adding skill\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2259,7 +2259,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         if (post_arg != NULL) {
             free(post_arg);
         }
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "error subtracting skill points\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2271,7 +2271,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     if (store == SILO) {
         if (check_silo_item_status(context->db, sanitized_string) == LOCKED) {
             if (update_silo_status(context->db, sanitized_string, UNLOCKED) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2282,7 +2282,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     else if (store == BARN) {
         if (check_barn_item_status(context->db, sanitized_string) == LOCKED) {
             if (update_barn_status(context->db, sanitized_string, UNLOCKED) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2291,7 +2291,7 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
         }
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "sucessfully bought skill: %s\r\n", sanitized_string);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
@@ -2301,8 +2301,8 @@ static void buy_skill_cb(struct evhttp_request* req, void* arg) {
     return;
 }
 
-static void plant_tree_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void plant_tree_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2310,7 +2310,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2318,7 +2318,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2328,7 +2328,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     if (context->tree_list == NULL) {
         context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
         if (context->tree_list == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not make trees\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2336,7 +2336,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
         }
         for (int i = 0; i < get_number_of_tree_plots(context->db); i++) {
             if (add_tree(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2349,7 +2349,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     int current;
     if ((current = get_number_of_trees_list(context->tree_list)) < get_number_of_tree_plots(context->db)) {
         if (amend_trees_list(context->tree_list, get_number_of_tree_plots(context->db)) != 0) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "could not amend trees\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2357,7 +2357,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
         }
         for (int i = current; i < get_number_of_tree_plots(context->db); i++) {
             if (add_tree(context->db, i) != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2367,19 +2367,19 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
         }
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
-    char* post_arg = NULL;
+    const char *query = evhttp_uri_get_query(uri);
+    char *post_arg = NULL;
 
     if (query == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         post_arg = malloc(buffersize);
         if (post_arg == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2392,7 +2392,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2406,7 +2406,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     type = tree_crop_string_to_enum(query);
 
     if (type == NONE_TREE) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "%s is not a correct query\r\n", query);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2420,10 +2420,10 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
         free(post_arg);
     }
 
-    const char* sanitized_string = tree_crop_enum_to_string(type);
+    const char *sanitized_string = tree_crop_enum_to_string(type);
 
     if (get_skill_status(context->db, sanitized_string) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2431,7 +2431,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     }
 
     //Plant tree plot
-    trees_list* list = context->tree_list;
+    trees_list *list = context->tree_list;
 
     int tree_plot = 0;
 
@@ -2443,13 +2443,13 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             //plant a tree
             //check if event is clear
             if (list->event == NULL) {
-                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                 box->list = list;
                 box->db = context->db;
 
                 list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
                 if (list->event == NULL) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2467,7 +2467,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             if (storage_place == BARN) {
                 if (barn_query_db(context->db, sanitized_string) > 0) {
                     if (update_barn(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -2478,7 +2478,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             else if (storage_place == SILO) {
                 if (silo_query_db(context->db, sanitized_string) > 0) {
                     if (update_silo(context->db, sanitized_string, -1) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -2488,7 +2488,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             }
             else if (get_money(context->db) > price) {
                 if (update_meta(context->db, (-1 * price), "Money") != 0) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not update money\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2496,7 +2496,7 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2513,10 +2513,10 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
             set_tree_time(context->db, list->tree_number, tree_maturity_time[type].tv_sec);
 
             //set the tree maturity timer
-            const struct timeval* tv = &tree_maturity_time[type];
+            const struct timeval *tv = &tree_maturity_time[type];
             int rc = event_add(list->event, tv);
             if (rc != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2534,22 +2534,22 @@ static void plant_tree_cb(struct evhttp_request* req, void* arg) {
     } while(list != NULL && done == 0);
 
     if (done == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no open tree plot\r\n");
         evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "planted tree plot: %d\r\n", tree_plot);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
-static void tree_mature_cb(evutil_socket_t fd, short events, void* user_data) {
-    struct box_for_list_and_db* box = user_data;
-    trees_list* list = box->list;
+static void tree_mature_cb(evutil_socket_t fd, short events, void *user_data) {
+    struct box_for_list_and_db *box = user_data;
+    trees_list *list = box->list;
 
     list->maturity = 1;
     list->completion = 0;
@@ -2557,25 +2557,25 @@ static void tree_mature_cb(evutil_socket_t fd, short events, void* user_data) {
     clear_tree_time(box->db, list->tree_number);
 
     //reset event
-    struct event* event = list->event;
-    struct event_base* base = event_get_base(event);
+    struct event *event = list->event;
+    struct event_base *base = event_get_base(event);
     if (event != NULL) {
         event_del(event);
         event_free(event);
     }
 
-    struct event* new_event = event_new(base, -1, 0, tree_harvest_ready_cb, box);
+    struct event *new_event = event_new(base, -1, 0, tree_harvest_ready_cb, box);
     list->event = new_event;
-    const struct timeval* tv = &tree_time[list->type];
+    const struct timeval *tv = &tree_time[list->type];
     set_tree_time(box->db, list->tree_number, tree_time[list->type].tv_sec);
     event_add(new_event, tv);
 
     return;
 }
 
-static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_data) {
-    struct box_for_list_and_db* box = user_data;
-    trees_list* list = box->list;
+static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void *user_data) {
+    struct box_for_list_and_db *box = user_data;
+    trees_list *list = box->list;
 
     list->completion = 1;
 
@@ -2584,8 +2584,8 @@ static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void* user_d
     return;
 }
 
-static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void tree_harvest_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2593,7 +2593,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2601,7 +2601,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2609,14 +2609,14 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->tree_list == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no tree\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    trees_list* list = context->tree_list;
+    trees_list *list = context->tree_list;
 
     do {
         if (list->completion == 1 && list->type != NONE_TREE) {
@@ -2626,14 +2626,14 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                 if (get_barn_allocation(context->db) < (get_barn_max(context->db)) - 1) {
                     if (add_item_to_barn(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
                         //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "barn error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
                         return;
                     }
                     if (update_barn(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "barn error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -2641,7 +2641,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                     }
                 }
                 else {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2652,14 +2652,14 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                 if (get_silo_allocation(context->db) < (get_silo_max(context->db)) - 1) {
                     if (add_item_to_silo(context->db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
                         //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "silo error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
                         return;
                     }
                     if (update_silo(context->db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        struct evbuffer* returnbuffer = evbuffer_new();
+                        struct evbuffer *returnbuffer = evbuffer_new();
                         evbuffer_add_printf(returnbuffer, "silo error\r\n");
                         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                         evbuffer_free(returnbuffer);
@@ -2667,7 +2667,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                     }
                 }
                 else {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to silo size\r\n", list->tree_number);
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2675,7 +2675,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
                 }
             }
             else {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
                 evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2688,15 +2688,15 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
             set_tree_completion(context->db, list->tree_number, 0);
             set_tree_time(context->db, list->tree_number, tree_time[list->type].tv_sec);
 
-            const struct timeval* tv = &tree_time[list->type];
+            const struct timeval *tv = &tree_time[list->type];
             if (list->event == NULL) {
-                struct box_for_list_and_db* box = malloc(sizeof(struct box_for_list_and_db));
+                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
                 box->list = list;
                 box->db = context->db;
 
                 list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
                 if (list->event == NULL) {
-                    struct evbuffer* returnbuffer = evbuffer_new();
+                    struct evbuffer *returnbuffer = evbuffer_new();
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
                     evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                     evbuffer_free(returnbuffer);
@@ -2706,7 +2706,7 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
             }
             int rc = event_add(list->event, tv);
             if (rc != 0) {
-                struct evbuffer* returnbuffer = evbuffer_new();
+                struct evbuffer *returnbuffer = evbuffer_new();
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
                 evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
                 evbuffer_free(returnbuffer);
@@ -2723,8 +2723,8 @@ static void tree_harvest_cb(struct evhttp_request* req, void* arg) {
     evhttp_send_reply(req, HTTP_OK, "Client", NULL);
 }
 
-static void tree_status_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void tree_status_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2732,7 +2732,7 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2740,7 +2740,7 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (get_number_of_tree_plots(context->db) == 0) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -2748,20 +2748,20 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->tree_list == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    trees_list* list = context->tree_list;
+    trees_list *list = context->tree_list;
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     //check for races
     do {
-        char* complete;
+        char *complete;
         if (list->completion == 1) {
             complete = "ready";
             set_tree_completion(context->db, list->tree_number, 1);
@@ -2773,7 +2773,7 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
             complete = "not ready";
         }
 
-        char* maturity;
+        char *maturity;
         if (list->maturity == 1) {
             maturity = "mature";
         }
@@ -2791,8 +2791,8 @@ static void tree_status_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void buy_item_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void buy_item_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -2800,26 +2800,26 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
-    char* post_arg = NULL;
+    const char *query = evhttp_uri_get_query(uri);
+    char *post_arg = NULL;
 
     if (query == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         post_arg = malloc(buffersize);
         if (post_arg == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2832,7 +2832,7 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -2849,7 +2849,7 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
 
     int item_price = 0;
     enum storage storage_place;
-    const char* sanitized_string;
+    const char *sanitized_string;
 
     switch (type) {
         case NONE_PRODUCT:
@@ -2885,7 +2885,7 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
             break;
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     if (item_price == 0) {
         evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
@@ -3074,8 +3074,8 @@ static void buy_item_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void sell_item_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void sell_item_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3083,26 +3083,26 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
-    char* post_arg = NULL;
+    const char *query = evhttp_uri_get_query(uri);
+    char *post_arg = NULL;
 
     if (query == NULL) {
         //check for post parameters
-        struct evbuffer* inputbuffer = evhttp_request_get_input_buffer(req);
+        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
         size_t buffersize = evbuffer_get_length(inputbuffer);
         buffersize++;
         post_arg = malloc(buffersize);
         if (post_arg == NULL) {
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "error\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -3115,7 +3115,7 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
             if (post_arg != NULL) {
                 free(post_arg);
             }
-            struct evbuffer* returnbuffer = evbuffer_new();
+            struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "no query\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
@@ -3132,7 +3132,7 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
 
     int item_price = 0;
     enum storage storage_place;
-    const char* sanitized_string;
+    const char *sanitized_string;
 
     switch (type) {
         case NONE_PRODUCT:
@@ -3168,7 +3168,7 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
             break;
     }
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     if (item_price == 0) {
         evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
@@ -3237,8 +3237,8 @@ static void sell_item_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void item_buy_price_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3246,20 +3246,20 @@ static void item_buy_price_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri);
 
     enum item_type type =  get_product_type_string(query);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     switch (type) {
         case NONE_PRODUCT:
@@ -3293,8 +3293,8 @@ static void item_buy_price_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void item_sell_price_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3302,20 +3302,20 @@ static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
         return;
     }
 
-    const struct evhttp_uri* uri = evhttp_request_get_evhttp_uri(req);
+    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
-    const char* query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri);
 
     enum item_type type =  get_product_type_string(query);
 
-    struct evbuffer* returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     switch (type) {
         case NONE_PRODUCT:
@@ -3349,8 +3349,8 @@ static void item_sell_price_cb(struct evhttp_request* req, void* arg) {
     evbuffer_free(returnbuffer);
 }
 
-static void get_barn_level_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_barn_level_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3358,7 +3358,7 @@ static void get_barn_level_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -3367,7 +3367,7 @@ static void get_barn_level_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = barn_level(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
@@ -3375,8 +3375,8 @@ static void get_barn_level_cb(struct evhttp_request* req, void* arg) {
     return;
 }
 
-static void get_silo_level_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3384,7 +3384,7 @@ static void get_silo_level_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -3393,7 +3393,7 @@ static void get_silo_level_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = silo_level(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
@@ -3401,8 +3401,8 @@ static void get_silo_level_cb(struct evhttp_request* req, void* arg) {
     return;
 }
 
-static void upgrade_barn_cb(struct evhttp_request* req, void* arg) {
-    loop_context* context = arg;
+static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3410,7 +3410,7 @@ static void upgrade_barn_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -3419,7 +3419,7 @@ static void upgrade_barn_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = upgrade_barn(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
@@ -3427,8 +3427,8 @@ static void upgrade_barn_cb(struct evhttp_request* req, void* arg) {
     return;
 }
 
-static void upgrade_silo_cb(struct evhttp_request* req, void* arg) {
-        loop_context* context = arg;
+static void upgrade_silo_cb(struct evhttp_request *req, void *arg) {
+        loop_context *context = arg;
 
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
@@ -3436,7 +3436,7 @@ static void upgrade_silo_cb(struct evhttp_request* req, void* arg) {
     }
 
     if (context->db == NULL) {
-        struct evbuffer* returnbuffer = evbuffer_new();
+        struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
@@ -3445,7 +3445,7 @@ static void upgrade_silo_cb(struct evhttp_request* req, void* arg) {
 
     int code = 0;
 
-    struct evbuffer* returnbuffer;
+    struct evbuffer *returnbuffer;
     returnbuffer = upgrade_silo(context->db, &code);
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
