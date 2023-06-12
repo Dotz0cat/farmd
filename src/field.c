@@ -96,54 +96,52 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
 
     do {
         if (list->completion == 1 && list->type != NONE_FIELD) {
-            enum storage storage_place = get_storage_type_field(list->type);
-
-            if (storage_place == SILO) {
-
-                if (get_silo_allocation(db) < (get_silo_max(db) - 1)) {
-                    if (add_item_to_silo(db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_silo(db, field_crop_enum_to_string(list->type), 2) != 0) {
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+            switch (add_to_storage(db, field_crop_enum_to_string(list->type), 2)) {
+                case (NO_STORAGE_ERROR): {
+                    break;
                 }
-                else {
-                    evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
+                case (BARN_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else if (storage_place == BARN) {
-
-                if (get_barn_allocation(db) < (get_barn_max(db) - 1)) {
-                    if (add_item_to_silo(db, field_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_barn(db, field_crop_enum_to_string(list->type), 2) != 0) {
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+                case (BARN_ADD): {
+                    evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
                 }
-                else {
+                case (BARN_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to barn size\r\n", list->field_number);
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else {
-                evbuffer_add_printf(returnbuffer, "could not harvest field%d due to not being implemented\r\n", list->field_number);
-                *code = 500;
-                return returnbuffer;
+                case (SILO_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (SILO_ADD): {
+                    evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (SILO_SIZE): {
+                    evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (STORAGE_NOT_HANDLED): {
+                    evbuffer_add_printf(returnbuffer, "could not harvest field%d due to not being implemented\r\n", list->field_number);
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
             }
 
             list->type = NONE_FIELD;
@@ -154,7 +152,7 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
             //clear the field time as it had now been harvested
             clear_field_time(db, list->field_number);
             update_meta(db, 2, "xp");
-            //xp_check(db);
+            xp_check(db);
         }
 
         list = list->next;
@@ -249,38 +247,42 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
 
             int price = field_crop_buy_cost(type);
 
-            enum storage store = get_storage_type_field(type);
-
             //consume crops or cash
-            if (store == SILO) {
-                if (silo_query_db(db, sanitized_string) > 0) {
-                    if (update_silo(db, sanitized_string, -1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+            switch (remove_from_storage(db, sanitized_string, 1)) {
+                case (NO_STORAGE_ERROR): {
+                    break;
                 }
-            }
-            else if (store == BARN) {
-                if (barn_query_db(db, sanitized_string) > 0) {
-                    if (update_barn(db, sanitized_string, -1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                }
-            }
-            else if (get_money(db) > price) {
-                if (update_meta(db, (-1 * price), "Money") != 0) {
-                    evbuffer_add_printf(returnbuffer, "could not update money\r\n");
+                case (BARN_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else {
-                evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
-                *code = 500;
-                return returnbuffer;
+                case (SILO_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (BARN_SIZE):
+                case (SILO_SIZE): {
+                    if (get_money(db) > price) {
+                        if (update_meta(db, (-1 * price), "Money") != 0) {
+                            evbuffer_add_printf(returnbuffer, "could not update money\r\n");
+                            *code = 500;
+                            return returnbuffer;
+                        }
+                        break;
+                    }
+                }
+                case (BARN_ADD):
+                case (SILO_ADD):
+                case (STORAGE_NOT_HANDLED): {
+                    evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
             }
 
             list->type = type;

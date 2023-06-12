@@ -604,31 +604,7 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
     char *filename = NULL;
 
     if (file_name == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        filename = malloc(buffersize);
-        if (filename == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, filename, buffersize);
-        filename[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(filename, "") == 0) {
-            if (filename != NULL) {
-                free(filename);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        filename = get_post_args(req);
         file_name = filename;
     }
 
@@ -701,31 +677,7 @@ static void open_save_cb(struct evhttp_request *req, void *arg) {
     char *filename = NULL;
 
     if (file_name == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        filename = malloc(buffersize);
-        if (filename == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, filename, buffersize);
-        filename[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(filename, "") == 0) {
-            if (filename != NULL) {
-                free(filename);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        filename = get_post_args(req);
         file_name = filename;
     }
 
@@ -776,8 +728,6 @@ static void close_save_cb(struct evhttp_request *req, void *arg) {
 }
 
 static void ping_save_cb(struct evhttp_request *req, void *arg) {
-    loop_context *context = arg;
-
     if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
         return;
@@ -791,31 +741,7 @@ static void ping_save_cb(struct evhttp_request *req, void *arg) {
     char *filename = NULL;
 
     if (file_name == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        filename = malloc(buffersize);
-        if (filename == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, filename, buffersize);
-        filename[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(filename, "") == 0) {
-            if (filename != NULL) {
-                free(filename);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        filename = get_post_args(req);
         file_name = filename;
     }
 
@@ -827,6 +753,7 @@ static void ping_save_cb(struct evhttp_request *req, void *arg) {
         evbuffer_add_printf(returnbuffer, "error pinging save\r\n");
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
+        return;
     }
 
     if (filename != NULL) {
@@ -1259,8 +1186,6 @@ static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
 }
 
 static void get_version_cb(struct evhttp_request *req, void *arg) {
-    loop_context *context = arg;
-
     if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
         return;
@@ -1376,29 +1301,6 @@ static void field_ready_cb(evutil_socket_t fd, short events, void *user_data) {
     set_field_completion(box->db, list->field_number, 1);
 
     return;
-}
-
-static void xp_check(sqlite3 *db) {
-    int level = get_level(db);
-    level--;
-    //was pow(2, level) * 10;
-    int xp_needed = 10 << level;
-    //xp needed for level 2 is 10
-    //level 3 is 20
-    //level 4 is 40
-    //level 5 is 80
-    //level 6 is 160
-    int xp = get_xp(db);
-    if (xp >= xp_needed) {
-        if (level_up(db, xp_needed) != 0) {
-            syslog(LOG_WARNING, "error leveling up");
-            return;
-        }
-        if (update_meta(db, 2, "SkillPoints") != 0) {
-            syslog(LOG_WARNING, "error adding skill points");
-            return;
-        }
-    }
 }
 
 static void buy_field_cb(struct evhttp_request *req, void *arg) {

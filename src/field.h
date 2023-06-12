@@ -25,6 +25,8 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
+#include "xp.h"
+#include "storage.h"
 #include "box_struct.h"
 
 struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code);

@@ -28,10 +28,9 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         return returnbuffer;
     }
 
-    enum item_type type =  get_product_type_string(item);
+    enum item_type type = get_product_type_string(item);
 
     int item_price = 0;
-    enum storage storage_place;
     const char *sanitized_string;
 
     switch (type) {
@@ -41,21 +40,18 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         case FIELD_PRODUCT: {
             enum field_crop item_enum = field_crop_string_to_enum(item);
             item_price = field_crop_buy_cost(item_enum);
-            storage_place = get_storage_type_field(item_enum);
             sanitized_string = field_crop_enum_to_string(item_enum);
             break;
         }
         case TREE_PRODUCT: {
             enum tree_crop item_enum = tree_crop_string_to_enum(item);
             item_price = tree_crop_buy_cost(item_enum);
-            storage_place = get_storage_type_tree(item_enum);
             sanitized_string = tree_crop_enum_to_string(item_enum);
             break;
         }
         case SPECIAL_PRODUCT: {
             enum special_item item_enum = special_item_string_to_enum(item);
             item_price = special_item_buy_cost(item_enum);
-            storage_place = get_storage_type_special(item_enum);
             sanitized_string = special_item_enum_to_string(item_enum);
             break;
         }
@@ -89,129 +85,52 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         return returnbuffer;
     }
 
-    if (storage_place == BARN) {
-        //check allocation
-        if (get_barn_allocation(db) < get_barn_max(db)) {
-            //check if item is there
-            if (barn_query_db(db, sanitized_string) != -1) {
-                //add item
-                if (update_barn(db, sanitized_string, 1) != 0) {
-                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    *code = 500;
-                    return returnbuffer;
-                }
-            }
-            else {
-                if (type != SPECIAL_PRODUCT) {
-                    if (get_skill_status(db, sanitized_string) == 0) {
-                        if (add_item_to_barn(db, sanitized_string, LOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                        if (update_barn(db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                    }
-                    else {
-                        if (add_item_to_barn(db, sanitized_string, UNLOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                        if (update_barn(db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                    }
-                }
-                else {
-                    //if it is a special product it is special
-                    if (add_item_to_barn(db, sanitized_string, SPECIAL) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_barn(db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                }
-            }
+    switch (add_to_storage(db, sanitized_string, 1)) {
+        case (NO_STORAGE_ERROR): {
+            break;
         }
-        else {
+        case (BARN_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (BARN_ADD): {
+            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (BARN_SIZE): {
             evbuffer_add_printf(returnbuffer, "error buying due to barn size\r\n");
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else if (storage_place == SILO) {
-        //check allocation
-        if (get_silo_allocation(db) < get_silo_max(db)) {
-            //check if item is there
-            if (silo_query_db(db, sanitized_string) != -1) {
-                //add item
-                if (update_silo(db, sanitized_string, 1) != 0) {
-                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    *code = 500;
-                    return returnbuffer;
-                }
-            }
-            else {
-                if (type != SPECIAL_PRODUCT) {
-                    if (get_skill_status(db, sanitized_string) == 0) {
-                        if (add_item_to_silo(db, sanitized_string, LOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                        if (update_silo(db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                    }
-                    else {
-                        if (add_item_to_silo(db, sanitized_string, UNLOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                        if (update_silo(db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                    }
-                }
-                else {
-                    //if it is a special product it is special
-                    if (add_item_to_barn(db, sanitized_string, SPECIAL) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_barn(db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                }
-            }
+        case (SILO_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
         }
-        else {
+        case (SILO_ADD): {
+            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (SILO_SIZE): {
             evbuffer_add_printf(returnbuffer, "error buying due to silo size\r\n");
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else {
-        *code = 500;
-        return returnbuffer;
+        case (STORAGE_NOT_HANDLED): {
+            evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
     }
 
     evbuffer_add_printf(returnbuffer, "sucessfully bought: %s\r\n", sanitized_string);
@@ -232,7 +151,6 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
     enum item_type type =  get_product_type_string(item);
 
     int item_price = 0;
-    enum storage storage_place;
     const char *sanitized_string;
 
     switch (type) {
@@ -242,21 +160,18 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
         case FIELD_PRODUCT: {
             enum field_crop item_enum = field_crop_string_to_enum(item);
             item_price = field_crop_sell_cost(item_enum);
-            storage_place = get_storage_type_field(item_enum);
             sanitized_string = field_crop_enum_to_string(item_enum);
             break;
         }
         case TREE_PRODUCT: {
             enum tree_crop item_enum = tree_crop_string_to_enum(item);
             item_price = tree_crop_sell_cost(item_enum);
-            storage_place = get_storage_type_tree(item_enum);
             sanitized_string = tree_crop_enum_to_string(item_enum);
             break;
         }
         case SPECIAL_PRODUCT: {
             enum special_item item_enum = special_item_string_to_enum(item);
             item_price = special_item_sell_cost(item_enum);
-            storage_place = get_storage_type_special(item_enum);
             sanitized_string = special_item_enum_to_string(item_enum);
             break;
         }
@@ -275,42 +190,42 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
         return returnbuffer;
     }
 
-    //db work
-    if (storage_place == BARN) {
-        //check if item is there
-        if (barn_query_db(db, sanitized_string) > 0) {
-            //remove item
-            if (update_barn(db, sanitized_string, -1) != 0) {
-                evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                *code = 500;
-                return returnbuffer;
-            }
+    switch (remove_from_storage(db, sanitized_string, 1)) {
+        case (NO_STORAGE_ERROR): {
+            break;
         }
-        else {
+        case (BARN_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (BARN_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", sanitized_string);
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else if (storage_place == SILO) {
-        //check if item is there
-        if (silo_query_db(db, sanitized_string) > 0) {
-            //remove item
-            if (update_silo(db, sanitized_string, -1) != 0) {
-                evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                *code = 500;
-                return returnbuffer;
-            }
+        case (SILO_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
         }
-        else {
+        case (SILO_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", sanitized_string);
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else {
-        *code = 500;
-        return returnbuffer;
+        case (BARN_ADD):
+        case (SILO_ADD):
+        case (STORAGE_NOT_HANDLED): {
+            evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
     }
 
     //update money

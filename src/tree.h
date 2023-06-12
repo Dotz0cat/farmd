@@ -25,6 +25,8 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
+#include "xp.h"
+#include "storage.h"
 #include "box_struct.h"
 
 struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code);

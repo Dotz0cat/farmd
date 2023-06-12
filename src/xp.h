@@ -17,20 +17,11 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BARN_H
-#define BARN_H
-
-#include <event2/event.h>
-#include <event2/buffer.h>
+#ifndef XP_H
+#define XP_H
 
 #include "save.h"
-#include "list.h"
-#include "storage.h"
 
-struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
-struct evbuffer *barn_allocation(sqlite3 *db, int *code);
-struct evbuffer *barn_max(sqlite3 *db, int *code);
-struct evbuffer *barn_level(sqlite3 *db, int *code);
-struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
+void xp_check(sqlite3 *db);
 
-#endif /* BARN_H */
+#endif /* XP_H */

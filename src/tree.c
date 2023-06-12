@@ -195,38 +195,42 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 
             int price = tree_crop_buy_cost(type);
 
-            enum storage storage_place = get_storage_type_tree(type);
-
             //consume crops or cash
-            if (storage_place == BARN) {
-                if (barn_query_db(db, sanitized_string) > 0) {
-                    if (update_barn(db, sanitized_string, -1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "could not update barn\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+            switch (remove_from_storage(db, sanitized_string, 1)) {
+                case (NO_STORAGE_ERROR): {
+                    break;
                 }
-            }
-            else if (storage_place == SILO) {
-                if (silo_query_db(db, sanitized_string) > 0) {
-                    if (update_silo(db, sanitized_string, -1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "could not update silo\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                }
-            }
-            else if (get_money(db) > price) {
-                if (update_meta(db, (-1 * price), "Money") != 0) {
-                    evbuffer_add_printf(returnbuffer, "could not update money\r\n");
+                case (BARN_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else {
-                evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
-                *code = 500;
-                return returnbuffer;
+                case (SILO_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (BARN_SIZE):
+                case (SILO_SIZE): {
+                    if (get_money(db) > price) {
+                        if (update_meta(db, (-1 * price), "Money") != 0) {
+                            evbuffer_add_printf(returnbuffer, "could not update money\r\n");
+                            *code = 500;
+                            return returnbuffer;
+                        }
+                        break;
+                    }
+                }
+                case (BARN_ADD):
+                case (SILO_ADD):
+                case (STORAGE_NOT_HANDLED): {
+                    evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
             }
 
             list->type = type;
@@ -292,52 +296,52 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
 
     do {
         if (list->completion == 1 && list->type != NONE_TREE) {
-            enum storage storage_place = get_storage_type_tree(list->type);
-
-            if (storage_place == BARN) {
-                if (get_barn_allocation(db) < (get_barn_max(db)) - 1) {
-                    if (add_item_to_barn(db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_barn(db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        evbuffer_add_printf(returnbuffer, "barn error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+            switch (add_to_storage(db, tree_crop_enum_to_string(list->type), 2)) {
+                case (NO_STORAGE_ERROR): {
+                    break;
                 }
-                else {
+                case (BARN_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (BARN_ADD): {
+                    evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (BARN_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else if (storage_place == SILO) {
-                if (get_silo_allocation(db) < (get_silo_max(db)) - 1) {
-                    if (add_item_to_silo(db, tree_crop_enum_to_string(list->type), UNLOCKED) != 0) {
-                        //INSERT OR IGNORE shouldnt cause an issue or any slowdowns I hope
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
-                    if (update_silo(db, tree_crop_enum_to_string(list->type), 2) != 0) {
-                        evbuffer_add_printf(returnbuffer, "silo error\r\n");
-                        *code = 500;
-                        return returnbuffer;
-                    }
+                case (SILO_UPDATE): {
+                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
                 }
-                else {
+                case (SILO_ADD): {
+                    evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
+                case (SILO_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to silo size\r\n", list->tree_number);
                     *code = 500;
                     return returnbuffer;
+                    break;
                 }
-            }
-            else {
-                evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
-                *code = 500;
-                return returnbuffer;
+                case (STORAGE_NOT_HANDLED): {
+                    evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
+                    *code = 500;
+                    return returnbuffer;
+                    break;
+                }
             }
             
             list->completion = 0;
@@ -367,7 +371,7 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
             }
 
             update_meta(db, 2, "xp");
-            //xp_check(db);
+            xp_check(db);
         }
         list = list->next;
     } while (list != NULL);

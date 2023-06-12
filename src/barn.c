@@ -105,7 +105,7 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
         evbuffer_add_printf(returnbuffer, "no save open\r\n");
         return returnbuffer;
     }
-    
+
     //get current
     int current_level = get_barn_meta_property(db, "Level");
 
@@ -130,27 +130,15 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
 
     //name lookup
     const char *upgrade_item = special_item_enum_to_string(BARN_UPGRADE_ITEM);
-    //type lookup even though it will be barn
-    enum storage store = get_storage_type_special(BARN_UPGRADE_ITEM);
 
-    if (store == BARN) {
-        //check items
-        if (barn_query_db(db, upgrade_item) < amount || get_money(db) < money_amount) {
-            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
-            *code = 500;
-            return returnbuffer;
-        }
+    if (get_money(db) < money_amount) {
+        evbuffer_add_printf(returnbuffer, "insuffecent money to upgrade\r\n");
+        *code = 500;
+        return returnbuffer;
     }
-    else if (store == SILO) {
-        //check items
-        if (silo_query_db(db, upgrade_item) < amount || get_money(db) < money_amount) {
-            evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
-            *code = 500;
-            return returnbuffer;
-        }
-    }
-    else {
-        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
+
+    if (items_in_storage(db, upgrade_item) < amount) {
+        evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
         *code = 500;
         return returnbuffer;
     }
@@ -162,24 +150,42 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
         return returnbuffer;
     }
 
-    if (store == BARN) {
-        if (update_barn(db, upgrade_item, (-1 * amount)) != 0) {
-            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+    switch (remove_from_storage(db, upgrade_item, amount)) {
+        case (NO_STORAGE_ERROR): {
+            break;
+        }
+        case (BARN_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else if (store == SILO) {
-        if (update_silo(db, upgrade_item, (-1 * amount)) != 0) {
-            evbuffer_add_printf(returnbuffer, "could not subtract item\r\n");
+        case (BARN_SIZE): {
+            evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", upgrade_item);
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else {
-        evbuffer_add_printf(returnbuffer, "This error is not supposed to happen\r\n%s not placed in barn or silo\r\n", upgrade_item);
-        *code = 500;
-        return returnbuffer;
+        case (SILO_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (SILO_SIZE): {
+            evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", upgrade_item);
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (BARN_ADD):
+        case (SILO_ADD):
+        case (STORAGE_NOT_HANDLED): {
+            evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
     }
 
     //upgrade

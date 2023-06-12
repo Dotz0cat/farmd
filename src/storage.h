@@ -17,20 +17,25 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BARN_H
-#define BARN_H
+#ifndef STORAGE_H
+#define STORAGE_H
 
-#include <event2/event.h>
-#include <event2/buffer.h>
-
-#include "save.h"
 #include "list.h"
-#include "storage.h"
+#include "save.h"
 
-struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
-struct evbuffer *barn_allocation(sqlite3 *db, int *code);
-struct evbuffer *barn_max(sqlite3 *db, int *code);
-struct evbuffer *barn_level(sqlite3 *db, int *code);
-struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
+enum storage_errors {
+    NO_STORAGE_ERROR,
+    BARN_UPDATE,
+    BARN_ADD,
+    BARN_SIZE,
+    SILO_UPDATE,
+    SILO_ADD,
+    SILO_SIZE,
+    STORAGE_NOT_HANDLED
+};
 
-#endif /* BARN_H */
+enum storage_errors add_to_storage(sqlite3 *db, const char *item, const int number_of_items);
+enum storage_errors remove_from_storage(sqlite3 *db, const char *item, const int number_of_items);
+int items_in_storage(sqlite3 *db, const char *item);
+
+#endif /* STORAGE_H */

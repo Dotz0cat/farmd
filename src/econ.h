@@ -24,6 +24,7 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
+#include "storage.h"
 
 struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code);
 struct evbuffer *sell_item(sqlite3* db, const char *item, int *code);

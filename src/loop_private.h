@@ -69,8 +69,6 @@ static void field_harvest_cb(struct evhttp_request *req, void *arg);
 static void plant_cb(struct evhttp_request *req, void *arg);
 static void field_ready_cb(evutil_socket_t fd, short events, void *user_data);
 
-static void xp_check(sqlite3 *db);
-
 static void buy_field_cb(struct evhttp_request *req, void *arg);
 static void buy_tree_plot_cb(struct evhttp_request *req, void *arg);
 static void buy_skill_cb(struct evhttp_request *req, void *arg);

@@ -17,20 +17,27 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef BARN_H
-#define BARN_H
+#include "xp.h"
 
-#include <event2/event.h>
-#include <event2/buffer.h>
-
-#include "save.h"
-#include "list.h"
-#include "storage.h"
-
-struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
-struct evbuffer *barn_allocation(sqlite3 *db, int *code);
-struct evbuffer *barn_max(sqlite3 *db, int *code);
-struct evbuffer *barn_level(sqlite3 *db, int *code);
-struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
-
-#endif /* BARN_H */
+void xp_check(sqlite3 *db) {
+    int level = get_level(db);
+    level--;
+    //was pow(2, level) * 10;
+    int xp_needed = 10 << level;
+    //xp needed for level 2 is 10
+    //level 3 is 20
+    //level 4 is 40
+    //level 5 is 80
+    //level 6 is 160
+    int xp = get_xp(db);
+    if (xp >= xp_needed) {
+        if (level_up(db, xp_needed) != 0) {
+            syslog(LOG_WARNING, "error leveling up");
+            return;
+        }
+        if (update_meta(db, 2, "SkillPoints") != 0) {
+            syslog(LOG_WARNING, "error adding skill points");
+            return;
+        }
+    }
+}

@@ -25,15 +25,12 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
+#include "storage.h"
 
 struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code);
-
 struct evbuffer *silo_allocation(sqlite3 *db, int *code);
-
 struct evbuffer *silo_max(sqlite3 *db, int *code);
-
 struct evbuffer *silo_level(sqlite3 *db, int *code);
-
 struct evbuffer *upgrade_silo(sqlite3 *db, int *code);
 
 #endif /* SILO_H */
