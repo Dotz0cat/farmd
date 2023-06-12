@@ -1741,279 +1741,26 @@ static void buy_item_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
 
     if (query == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        post_arg = malloc(buffersize);
-        if (post_arg == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, post_arg, buffersize);
-        post_arg[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(post_arg, "") == 0) {
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        post_arg = get_post_args(req);
         query = post_arg;
     }
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = buy_item(context->db, query, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 
     if (post_arg != NULL) {
         free(post_arg);
     }
-
-    enum item_type type =  get_product_type_string(query);
-
-    int item_price = 0;
-    enum storage storage_place;
-    const char *sanitized_string;
-
-    switch (type) {
-        case NONE_PRODUCT:
-            item_price = 0;
-            break;
-        case FIELD_PRODUCT: {
-            enum field_crop item = field_crop_string_to_enum(query);
-            item_price = field_crop_buy_cost(item);
-            storage_place = get_storage_type_field(item);
-            sanitized_string = field_crop_enum_to_string(item);
-            break;
-        }
-        case TREE_PRODUCT: {
-            enum tree_crop item = tree_crop_string_to_enum(query);
-            item_price = tree_crop_buy_cost(item);
-            storage_place = get_storage_type_tree(item);
-            sanitized_string = tree_crop_enum_to_string(item);
-            break;
-        }
-        case SPECIAL_PRODUCT: {
-            enum special_item item = special_item_string_to_enum(query);
-            item_price = special_item_buy_cost(item);
-            storage_place = get_storage_type_special(item);
-            sanitized_string = special_item_enum_to_string(item);
-            break;
-        }
-        case OTHER_PRODUCT:
-            //nop
-            item_price = 0;
-            break;
-        default:
-            item_price = 0;
-            break;
-    }
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-
-    if (item_price == 0) {
-        evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
-        evhttp_send_reply(req, HTTP_BADREQUEST, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    //db work
-    //update money
-    if (get_money(context->db) > item_price) {
-        if (update_meta(context->db, (-1 * item_price), "Money")) {
-            evbuffer_add_printf(returnbuffer, "error updating money\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            syslog(LOG_WARNING, "error updating money");
-            return;
-        }
-    }
-    else {
-        evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    if (storage_place == BARN) {
-        //check allocation
-        if (get_barn_allocation(context->db) < get_barn_max(context->db)) {
-            //check if item is there
-            if (barn_query_db(context->db, sanitized_string) != -1) {
-                //add item
-                if (update_barn(context->db, sanitized_string, 1) != 0) {
-                    evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error updating barn");
-                    return;
-                }
-            }
-            else {
-                if (type != SPECIAL_PRODUCT) {
-                    if (get_skill_status(context->db, sanitized_string) == 0) {
-                        if (add_item_to_barn(context->db, sanitized_string, LOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error adding item to barn");
-                            return;
-                        }
-                        if (update_barn(context->db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error updating barn");
-                            return;
-                        }
-                    }
-                    else {
-                        if (add_item_to_barn(context->db, sanitized_string, UNLOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error adding item to barn");
-                            return;
-                        }
-                        if (update_barn(context->db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error updating barn");
-                            return;
-                        }
-                    }
-                }
-                else {
-                    //if it is a special product it is special
-                    if (add_item_to_barn(context->db, sanitized_string, SPECIAL) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error adding item to barn");
-                        return;
-                    }
-                    if (update_barn(context->db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error updating barn");
-                        return;
-                    }
-                }
-            }
-        }
-        else {
-            evbuffer_add_printf(returnbuffer, "error buying due to barn size\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else if (storage_place == SILO) {
-        //check allocation
-        if (get_silo_allocation(context->db) < get_silo_max(context->db)) {
-            //check if item is there
-            if (silo_query_db(context->db, sanitized_string) != -1) {
-                //add item
-                if (update_silo(context->db, sanitized_string, 1) != 0) {
-                    evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                    evbuffer_free(returnbuffer);
-                    syslog(LOG_WARNING, "error updating silo");
-                    return;
-                }
-            }
-            else {
-                if (type != SPECIAL_PRODUCT) {
-                    if (get_skill_status(context->db, sanitized_string) == 0) {
-                        if (add_item_to_silo(context->db, sanitized_string, LOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error adding item to silo");
-                            return;
-                        }
-                        if (update_silo(context->db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error updating silo");
-                            return;
-                        }
-                    }
-                    else {
-                        if (add_item_to_silo(context->db, sanitized_string, UNLOCKED) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error adding item to silo");
-                            return;
-                        }
-                        if (update_silo(context->db, sanitized_string, 1) != 0) {
-                            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                            evbuffer_free(returnbuffer);
-                            syslog(LOG_WARNING, "error updating silo");
-                            return;
-                        }
-                    }
-                }
-                else {
-                    //if it is a special product it is special
-                    if (add_item_to_barn(context->db, sanitized_string, SPECIAL) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error adding item to barn");
-                        return;
-                    }
-                    if (update_barn(context->db, sanitized_string, 1) != 0) {
-                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                        evbuffer_free(returnbuffer);
-                        syslog(LOG_WARNING, "error updating barn");
-                        return;
-                    }
-                }
-            }
-        }
-        else {
-            evbuffer_add_printf(returnbuffer, "error buying due to silo size\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else {
-        evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", NULL);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    evbuffer_add_printf(returnbuffer, "sucessfully bought: %s\r\n", sanitized_string);
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
 }
 
 static void sell_item_cb(struct evhttp_request *req, void *arg) {
@@ -2024,159 +1771,26 @@ static void sell_item_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
 
     if (query == NULL) {
-        //check for post parameters
-        struct evbuffer *inputbuffer = evhttp_request_get_input_buffer(req);
-        size_t buffersize = evbuffer_get_length(inputbuffer);
-        buffersize++;
-        post_arg = malloc(buffersize);
-        if (post_arg == NULL) {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "error\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-        evbuffer_copyout(inputbuffer, post_arg, buffersize);
-        post_arg[buffersize - 1] = '\0';
-        //check if filled
-        if (strcmp(post_arg, "") == 0) {
-            if (post_arg != NULL) {
-                free(post_arg);
-            }
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "no query\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
+        post_arg = get_post_args(req);
         query = post_arg;
     }
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = sell_item(context->db, query, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 
     if (post_arg != NULL) {
         free(post_arg);
     }
-
-    enum item_type type =  get_product_type_string(query);
-
-    int item_price = 0;
-    enum storage storage_place;
-    const char *sanitized_string;
-
-    switch (type) {
-        case NONE_PRODUCT:
-            item_price = 0;
-            break;
-        case FIELD_PRODUCT: {
-            enum field_crop item = field_crop_string_to_enum(query);
-            item_price = field_crop_sell_cost(item);
-            storage_place = get_storage_type_field(item);
-            sanitized_string = field_crop_enum_to_string(item);
-            break;
-        }
-        case TREE_PRODUCT: {
-            enum tree_crop item = tree_crop_string_to_enum(query);
-            item_price = tree_crop_sell_cost(item);
-            storage_place = get_storage_type_tree(item);
-            sanitized_string = tree_crop_enum_to_string(item);
-            break;
-        }
-        case SPECIAL_PRODUCT: {
-            enum special_item item = special_item_string_to_enum(query);
-            item_price = special_item_sell_cost(item);
-            storage_place = get_storage_type_special(item);
-            sanitized_string = special_item_enum_to_string(item);
-            break;
-        }
-        case OTHER_PRODUCT:
-            //nop
-            item_price = 0;
-            break;
-        default:
-            item_price = 0;
-            break;
-    }
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-
-    if (item_price == 0) {
-        evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", query);
-        evhttp_send_reply(req, HTTP_BADREQUEST, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    //db work
-    if (storage_place == BARN) {
-        //check if item is there
-        if (barn_query_db(context->db, sanitized_string) > 0) {
-            //remove item
-            if (update_barn(context->db, sanitized_string, -1) != 0) {
-                evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error updating barn");
-                return;
-            }
-        }
-        else {
-            evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", sanitized_string);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else if (storage_place == SILO) {
-        //check if item is there
-        if (silo_query_db(context->db, sanitized_string) > 0) {
-            //remove item
-            if (update_silo(context->db, sanitized_string, -1) != 0) {
-                evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-                evbuffer_free(returnbuffer);
-                syslog(LOG_WARNING, "error updating silo");
-                return;
-            }
-        }
-        else {
-            evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", sanitized_string);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
-            return;
-        }
-    }
-    else {
-        evhttp_send_reply(req, HTTP_NOTIMPLEMENTED, "Client", NULL);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
-    //update money
-    if (update_meta(context->db, item_price, "Money")) {
-        evbuffer_add_printf(returnbuffer, "error updating money\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        syslog(LOG_WARNING, "error updating money");
-        return;
-    }
-
-    evbuffer_add_printf(returnbuffer, "sucessfully sold: %s for %d\r\n", sanitized_string, item_price);
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
 }
 
 static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
@@ -2187,51 +1801,15 @@ static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
     const char *query = evhttp_uri_get_query(uri);
 
-    enum item_type type =  get_product_type_string(query);
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = get_item_buy_price(context->db, query, &code);
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-
-    switch (type) {
-        case NONE_PRODUCT:
-            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
-            break;
-        case FIELD_PRODUCT: {
-            enum field_crop item = field_crop_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, field_crop_buy_cost(item));
-            break;
-        }
-        case TREE_PRODUCT: {
-            enum tree_crop item = tree_crop_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_buy_cost(item));
-            break;
-        }
-        case SPECIAL_PRODUCT: {
-            enum special_item item = special_item_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, special_item_sell_cost(item));
-            break;
-        }
-        case OTHER_PRODUCT:
-            //nop
-            evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
-            break;
-        default:
-            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
-            break;
-    }
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -2243,51 +1821,15 @@ static void item_sell_price_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
-
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
     const char *query = evhttp_uri_get_query(uri);
 
-    enum item_type type =  get_product_type_string(query);
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = get_item_sell_price(context->db, query, &code);
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-
-    switch (type) {
-        case NONE_PRODUCT:
-            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
-            break;
-        case FIELD_PRODUCT: {
-            enum field_crop item = field_crop_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, field_crop_sell_cost(item));
-            break;
-        }
-        case TREE_PRODUCT: {
-            enum tree_crop item = tree_crop_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, tree_crop_sell_cost(item));
-            break;
-        }
-        case SPECIAL_PRODUCT: {
-            enum special_item item = special_item_string_to_enum(query);
-            evbuffer_add_printf(returnbuffer, "%s: %d\r\n", query, special_item_sell_cost(item));
-            break;
-        }
-        case OTHER_PRODUCT:
-            //nop
-            evbuffer_add_printf(returnbuffer, "%s: not yet implemented\r\n", query);
-            break;
-        default:
-            evbuffer_add_printf(returnbuffer, "%s: is not a valid item\r\n", query);
-            break;
-    }
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 

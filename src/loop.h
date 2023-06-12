@@ -48,6 +48,7 @@ This file is part of farmd.
 #include "silo.h"
 #include "field.h"
 #include "tree.h"
+#include "econ.h"
 
 typedef struct _events_box events_box;
 
