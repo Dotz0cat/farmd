@@ -92,24 +92,10 @@ struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
     }
 
     //unlock the item in storage
-    enum storage store = get_storage_type_string(sanitized_string);
-    if (store == SILO) {
-        if (check_silo_item_status(db, sanitized_string) == LOCKED) {
-            if (update_silo_status(db, sanitized_string, UNLOCKED) != 0) {
-                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
-                *code = 500;
-                return returnbuffer;
-            }
-        }
-    }
-    else if (store == BARN) {
-        if (check_barn_item_status(db, sanitized_string) == LOCKED) {
-            if (update_barn_status(db, sanitized_string, UNLOCKED) != 0) {
-                evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
-                *code = 500;
-                return returnbuffer;
-            }
-        }
+    if (unlock_item_status(db, sanitized_string) != 0) {
+        evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
+        *code = 500;
+        return returnbuffer;
     }
 
     *code = 200;

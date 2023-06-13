@@ -164,3 +164,26 @@ int items_in_storage(sqlite3 *db, const char *item) {
         return -1;
     }
 }
+
+int unlock_item_status(sqlite3 *db, const char *item) {
+    enum storage store = get_storage_type_string(item);
+    if (store == SILO) {
+        if (check_silo_item_status(db, item) == LOCKED) {
+            if (update_silo_status(db, item, UNLOCKED) != 0) {
+                return -1;
+            }
+        }
+    }
+    else if (store == BARN) {
+        if (check_barn_item_status(db, item) == LOCKED) {
+            if (update_barn_status(db, item, UNLOCKED) != 0) {
+                return -1;
+            }
+        }
+    }
+    else {
+        return 0;
+    }
+
+    return 0;
+}

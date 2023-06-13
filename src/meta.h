@@ -23,11 +23,34 @@ This file is part of farmd.
 #include <event2/buffer.h>
 
 #include "save.h"
+#include "list.h"
+#include "storage.h"
+
+enum money_errors {
+    NO_MONEY_ERROR,
+    NOT_ENOUGH,
+    ERROR_UPDATING,
+};
+
+enum consume_or_buy_errors {
+    NO_CONSUME_OR_BUY_ERROR,
+    CONSUME_OR_BUY_BARN,
+    CONSUME_OR_BUY_SILO,
+    CONSUME_OR_BUY_NOT_ENOUGH_MONEY,
+    CONSUME_OR_BUY_MONEY_ERROR,
+    COULD_NOT_CONSUME_OR_BUY,
+};
 
 void xp_check(sqlite3 *db);
 struct evbuffer *view_money(sqlite3 *db, int *code);
 struct evbuffer *view_level(sqlite3 *db, int *code);
 struct evbuffer *view_xp(sqlite3 *db, int *code);
 struct evbuffer *view_skill_points(sqlite3 *db, int *code);
+
+enum money_errors add_money(sqlite3 *db, const int amount);
+enum money_errors subtract_money(sqlite3 *db, const int amount);
+
+enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item);
+enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const char *item, const int price);
 
 #endif /* META_H */

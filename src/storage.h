@@ -37,5 +37,6 @@ enum storage_errors {
 enum storage_errors add_to_storage(sqlite3 *db, const char *item, const int number_of_items);
 enum storage_errors remove_from_storage(sqlite3 *db, const char *item, const int number_of_items);
 int items_in_storage(sqlite3 *db, const char *item);
+int unlock_item_status(sqlite3 *db, const char *item);
 
 #endif /* STORAGE_H */

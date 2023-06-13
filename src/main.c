@@ -30,16 +30,32 @@ int main(int argc, char **argv) {
         switch(opt) {
             case 'v':
                 printf("%s version: %s\r\n", argv[0], VERSION);
+                if (config != NULL) {
+                    free(config);
+                }
+                if (save != NULL) {
+                    free(save);
+                }
                 return EXIT_SUCCESS;
                 break;
             case 'c':
-                config = strdup(optarg);
+                if (config == NULL) {
+                    config = strdup(optarg);
+                }
                 break;
-            case 's':
-                save = strdup(optarg);
+            case 's': 
+                if (save == NULL) {
+                    save = strdup(optarg);
+                }
                 break;
             default: /* ? */
                 fprintf(stderr, "Usage: %s [-v] [-c config] [-s save]\r\n", argv[0]);
+                if (config != NULL) {
+                    free(config);
+                }
+                if (save != NULL) {
+                    free(save);
+                }
                 return EXIT_FAILURE;
         }
     }

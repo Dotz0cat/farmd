@@ -248,36 +248,34 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
             int price = field_crop_buy_cost(type);
 
             //consume crops or cash
-            switch (remove_from_storage(db, sanitized_string, 1)) {
+            switch(consume_crops_or_cash_price_hint(db, sanitized_string, price)) {
                 case (NO_STORAGE_ERROR): {
                     break;
                 }
-                case (BARN_UPDATE): {
+                case (CONSUME_OR_BUY_BARN): {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
                     *code = 500;
                     return returnbuffer;
                     break;
                 }
-                case (SILO_UPDATE): {
+                case (CONSUME_OR_BUY_SILO): {
                     evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
                     *code = 500;
                     return returnbuffer;
                     break;
                 }
-                case (BARN_SIZE):
-                case (SILO_SIZE): {
-                    if (get_money(db) > price) {
-                        if (update_meta(db, (-1 * price), "Money") != 0) {
-                            evbuffer_add_printf(returnbuffer, "could not update money\r\n");
-                            *code = 500;
-                            return returnbuffer;
-                        }
-                        break;
-                    }
+                case (CONSUME_OR_BUY_NOT_ENOUGH_MONEY): {
+                    evbuffer_add_printf(returnbuffer, "not enough money\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                    break;
                 }
-                case (BARN_ADD):
-                case (SILO_ADD):
-                case (STORAGE_NOT_HANDLED): {
+                case (CONSUME_OR_BUY_MONEY_ERROR): {
+                    evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
+                    *code = 500;
+                    return returnbuffer;
+                }
+                case (COULD_NOT_CONSUME_OR_BUY): {
                     evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
                     *code = 500;
                     return returnbuffer;
@@ -326,24 +324,26 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
         //price is 2^current fields for next
         //was pow(2, current)
         int price = 2 << current;
-        if (get_money(db) > price) {
-            if (update_meta(db, (-1 * price), "Money") == 0) {
+        switch (subtract_money(db, price)) {
+            case (NO_MONEY_ERROR): {
                 if (update_meta(db, 1, "Fields") != 0) {
                     evbuffer_add_printf(returnbuffer, "error adding field\r\n");
                     *code = 500;
                     return returnbuffer;
                 }
+                break;
             }
-            else {
+            case (NOT_ENOUGH): {
+                evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
+                *code = 500;
+                return returnbuffer;
+                break;
+            }
+            case (ERROR_UPDATING): {
                 evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
                 *code = 500;
                 return returnbuffer;
             }
-        }
-        else {
-            evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
-            *code = 500;
-            return returnbuffer;
         }
     }
     else {

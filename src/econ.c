@@ -72,17 +72,22 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
 
     //db work
     //update money
-    if (get_money(db) > item_price) {
-        if (update_meta(db, (-1 * item_price), "Money")) {
+    switch (subtract_money(db, item_price)) {
+        case (NO_MONEY_ERROR): {
+            break;
+        }
+        case (NOT_ENOUGH): {
+            evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
+        case (ERROR_UPDATING): {
             evbuffer_add_printf(returnbuffer, "error updating money\r\n");
             *code = 500;
             return returnbuffer;
+            break;
         }
-    }
-    else {
-        evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
-        *code = 500;
-        return returnbuffer;
     }
 
     switch (add_to_storage(db, sanitized_string, 1)) {
@@ -229,10 +234,17 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
     }
 
     //update money
-    if (update_meta(db, item_price, "Money")) {
-        evbuffer_add_printf(returnbuffer, "error updating money\r\n");
-        *code = 500;
-        return returnbuffer;
+    switch (add_money(db, item_price)) {
+        case (NO_MONEY_ERROR): {
+            break;
+        }
+        case (NOT_ENOUGH):
+        case (ERROR_UPDATING): {
+            evbuffer_add_printf(returnbuffer, "error updating money\r\n");
+            *code = 500;
+            return returnbuffer;
+            break;
+        }
     }
 
     evbuffer_add_printf(returnbuffer, "sucessfully sold: %s for %d\r\n", sanitized_string, item_price);

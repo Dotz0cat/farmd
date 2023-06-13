@@ -130,12 +130,6 @@ struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
 
     //name lookup
     const char *upgrade_item = special_item_enum_to_string(SILO_UPGRADE_ITEM);
-    
-    if (get_money(db) < money_amount) {
-        evbuffer_add_printf(returnbuffer, "insuffecent money to upgrade\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
 
     if (items_in_storage(db, upgrade_item) < amount) {
         evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
@@ -144,10 +138,20 @@ struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
     }
 
     //subtract items
-    if (update_meta(db, (-1 * money_amount), "Money") != 0) {
-        evbuffer_add_printf(returnbuffer, "could not subtract money\r\n");
-        *code = 500;
-        return returnbuffer;
+    switch (subtract_money(db, money_amount)) {
+        case (NO_MONEY_ERROR): {
+            break;
+        }
+        case (ERROR_UPDATING): {
+            evbuffer_add_printf(returnbuffer, "could not subtract money\r\n");
+            *code = 500;
+            return returnbuffer;
+        }
+        case (NOT_ENOUGH): {
+            evbuffer_add_printf(returnbuffer, "insuffecent money to upgrade\r\n");
+            *code = 500;
+            return returnbuffer;
+        }
     }
 
     switch (remove_from_storage(db, upgrade_item, amount)) {

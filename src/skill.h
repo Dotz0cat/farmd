@@ -25,6 +25,7 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
+#include "storage.h"
 
 //skill_name, dependency
 #define SKILL_DEP_TABLE \

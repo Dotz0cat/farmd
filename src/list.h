@@ -146,4 +146,7 @@ enum item_type get_product_type_special(const enum special_item type);
 enum special_item special_item_string_to_enum(const char *string);
 const char *special_item_enum_to_string(const enum special_item item);
 
+int item_buy_price_string(const char *string);
+int item_sell_price_string(const char *string);
+
 #endif /* LIST_H */

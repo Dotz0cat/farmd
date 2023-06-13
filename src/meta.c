@@ -105,3 +105,107 @@ struct evbuffer *view_skill_points(sqlite3 *db, int *code) {
     *code = 200;
     return returnbuffer;
 }
+
+enum money_errors add_money(sqlite3 *db, const int amount) {
+    if (update_meta(db, amount, "Money") != 0) {
+        return ERROR_UPDATING;
+    }
+
+    return NO_MONEY_ERROR;
+}
+
+enum money_errors subtract_money(sqlite3 *db, const int amount) {
+    if (get_money(db) > amount) {
+        if (update_meta(db, (-1 * amount), "Money") != 0) {
+            return ERROR_UPDATING;
+        }
+    }
+    else {
+        return NOT_ENOUGH;
+    }
+
+    return NO_MONEY_ERROR;
+}
+
+enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item) {
+    switch (remove_from_storage(db, item, 1)) {
+        case (NO_STORAGE_ERROR): {
+            return NO_CONSUME_OR_BUY_ERROR;
+            break;
+        }
+        case (BARN_UPDATE): {
+            return CONSUME_OR_BUY_BARN;
+            break;
+        }
+        case (SILO_UPDATE): {
+            return CONSUME_OR_BUY_SILO;
+            break;
+        }
+        case (BARN_SIZE):
+        case (SILO_SIZE): {
+            int price = item_buy_price_string(item);
+            switch (subtract_money(db, price)) {
+                case (NO_MONEY_ERROR): {
+                    return NO_CONSUME_OR_BUY_ERROR;
+                    break;
+                }
+                case (NOT_ENOUGH): {
+                    return CONSUME_OR_BUY_NOT_ENOUGH_MONEY;
+                    break;
+                }
+                case (ERROR_UPDATING): {
+                    return CONSUME_OR_BUY_MONEY_ERROR;
+                }
+            }
+            break;
+        }
+        case (BARN_ADD):
+        case (SILO_ADD):
+        case (STORAGE_NOT_HANDLED):
+        default: {
+            return COULD_NOT_CONSUME_OR_BUY;
+            break;
+        }
+    }
+}
+
+enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const char *item, const int price) {
+    switch (remove_from_storage(db, item, 1)) {
+        case (NO_STORAGE_ERROR): {
+            return NO_CONSUME_OR_BUY_ERROR;
+            break;
+        }
+        case (BARN_UPDATE): {
+            return CONSUME_OR_BUY_BARN;
+            break;
+        }
+        case (SILO_UPDATE): {
+            return CONSUME_OR_BUY_SILO;
+            break;
+        }
+        case (BARN_SIZE):
+        case (SILO_SIZE): {
+            switch (subtract_money(db, price)) {
+                case (NO_MONEY_ERROR): {
+                    return NO_CONSUME_OR_BUY_ERROR;
+                    break;
+                }
+                case (NOT_ENOUGH): {
+                    return CONSUME_OR_BUY_NOT_ENOUGH_MONEY;
+                    break;
+                }
+                case (ERROR_UPDATING): {
+                    return CONSUME_OR_BUY_MONEY_ERROR;
+                }
+            }
+            break;
+        }
+        case (BARN_ADD):
+        case (SILO_ADD):
+        case (STORAGE_NOT_HANDLED):
+        default: {
+            return COULD_NOT_CONSUME_OR_BUY;
+            break;
+        }
+    }
+}

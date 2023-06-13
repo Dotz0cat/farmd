@@ -26,6 +26,7 @@ This file is part of farmd.
 #include "save.h"
 #include "list.h"
 #include "storage.h"
+#include "meta.h"
 
 struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
 struct evbuffer *barn_allocation(sqlite3 *db, int *code);

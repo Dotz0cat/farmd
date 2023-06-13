@@ -462,3 +462,55 @@ enum special_item special_item_string_to_enum(const char *string) {
 const char *special_item_enum_to_string(const enum special_item item) {
     return special_item_strings[item];
 }
+
+int item_buy_price_string(const char *string) {
+    if (strcasecmp(string, "none") == 0) {
+        return 0;
+    }
+
+    for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
+        if (strcasecmp(string, field_crop_strings[i]) == 0) {
+            return field_crop_buy_cost(i);
+        }
+    }
+
+    for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
+        if (strcasecmp(string, tree_crop_strings[i]) == 0) {
+            return tree_crop_buy_cost(i);
+        }
+    }
+
+    for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
+        if (strcasecmp(string, special_item_strings[i]) == 0) {
+            return special_item_buy_cost(i);
+        }
+    }
+
+    return 0;
+}
+
+int item_sell_price_string(const char *string) {
+    if (strcasecmp(string, "none") == 0) {
+        return 0;
+    }
+
+    for (int i = 0; i < (int) (sizeof(field_crop_strings) / sizeof(field_crop_strings[0])); i++) {
+        if (strcasecmp(string, field_crop_strings[i]) == 0) {
+            return field_crop_sell_cost(i);
+        }
+    }
+
+    for (int i = 0; i < (int) (sizeof(tree_crop_strings) / sizeof(tree_crop_strings[0])); i++) {
+        if (strcasecmp(string, tree_crop_strings[i]) == 0) {
+            return tree_crop_sell_cost(i);
+        }
+    }
+
+    for (int i = 0; i < (int) (sizeof(special_item_strings) / sizeof(special_item_strings[0])); i++) {
+        if (strcasecmp(string, special_item_strings[i]) == 0) {
+            return special_item_sell_cost(i);
+        }
+    }
+
+    return 0;
+}
