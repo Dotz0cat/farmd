@@ -190,13 +190,16 @@ static fields_list *wind_fields_to_tail(fields_list *list) {
 int amend_fields_list(fields_list *head, int new_number) {
     int old_number = get_number_of_fields_list(head);
 
-    if (new_number <= old_number) {
-        //cannot sell fields
+    if (new_number <= old_number || head == NULL) {
         return -1;
     }
     fields_list *list = head;
 
     list = wind_fields_to_tail(list);
+
+    if (list == NULL) {
+        return -1;
+    }
 
     for (int i = old_number; i < new_number; i++) {
         add_field_to_list(list, i);
@@ -297,13 +300,17 @@ static trees_list *wind_trees_to_tail(trees_list *head) {
 int amend_trees_list(trees_list *head, const int new_number) {
     int old_number = get_number_of_trees_list(head);
 
-    if (new_number <= old_number) {
+    if (new_number <= old_number || head == NULL) {
         return -1;
     }
 
     trees_list *list = head;
 
     list = wind_trees_to_tail(list);
+
+    if (list == NULL) {
+        return -1;
+    }
 
     for (int i = old_number; i < new_number; i++) {
         list = add_tree_to_list(list, i);

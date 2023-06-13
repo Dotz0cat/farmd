@@ -50,6 +50,7 @@ This file is part of farmd.
 #include "tree.h"
 #include "econ.h"
 #include "skill.h"
+#include "meta.h"
 
 typedef struct _events_box events_box;
 

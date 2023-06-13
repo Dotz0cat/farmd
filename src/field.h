@@ -25,7 +25,7 @@ This file is part of farmd.
 
 #include "save.h"
 #include "list.h"
-#include "xp.h"
+#include "meta.h"
 #include "storage.h"
 #include "box_struct.h"
 

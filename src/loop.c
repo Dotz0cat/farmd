@@ -611,48 +611,48 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
     int rc = create_save(file_name, context);
     switch (rc) {
         case (1): {
-            if (filename != NULL) {
-                free(filename);
-            }
             struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to create new save at %s\r\n", file_name);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
+            if (filename != NULL) {
+                free(filename);
+            }
             return;
             break;
         }
         case (2): {
-            if (filename != NULL) {
-                free(filename);
-            }
             struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to open new save at %s for inital settings\r\n", file_name);
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
+            if (filename != NULL) {
+                free(filename);
+            }
             return;
             break;
         }
         case (3): {
-            if (filename != NULL) {
-                free(filename);
-            }
             struct evbuffer *returnbuffer = evbuffer_new();
             evbuffer_add_printf(returnbuffer, "failed to add inital settings\r\n");
             evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
             evbuffer_free(returnbuffer);
+            if (filename != NULL) {
+                free(filename);
+            }
             return;
             break;
         }
-    }
-
-    if (filename != NULL) {
-        free(filename);
     }
 
     struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "new save created at %s\r\n", file_name);
     evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
+
+    if (filename != NULL) {
+        free(filename);
+    }
 }
 
 static void open_save_cb(struct evhttp_request *req, void *arg) {
@@ -683,13 +683,13 @@ static void open_save_cb(struct evhttp_request *req, void *arg) {
 
     int rc = open_save(file_name, context);
     if (rc != 0) {
-        if (filename != NULL) {
-            free(filename);
-        }
         struct evbuffer *returnbuffer = evbuffer_new();
         evbuffer_add_printf(returnbuffer, "failed to open save at %s\r\n", file_name);
         evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
         evbuffer_free(returnbuffer);
+        if (filename != NULL) {
+            free(filename);
+        }
         return;
     }
 
@@ -1077,19 +1077,11 @@ static void get_money_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = view_money(context->db, &code);
 
-    int money = get_money(context->db);
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "money: %d\r\n", money);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -1101,19 +1093,11 @@ static void get_level_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = view_level(context->db, &code);
 
-    int level = get_level(context->db);
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "level: %d\r\n", level);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -1125,19 +1109,11 @@ static void get_xp_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = view_xp(context->db, &code);
 
-    int xp = get_xp(context->db);
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "xp: %d\r\n", xp);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -1149,19 +1125,11 @@ static void get_skill_points_cb(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
-        return;
-    }
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = view_skill_points(context->db, &code);
 
-    int skill_points = get_skill_points(context->db);
-
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "Skill points: %d\r\n", skill_points);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
+    evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 }
 
@@ -1362,13 +1330,6 @@ static void buy_skill_cb(struct evhttp_request *req, void *arg) {
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
 
-    if (post_arg != NULL) {
-        free(post_arg);
-    }
-
-
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
     if (post_arg != NULL) {
         free(post_arg);
     }

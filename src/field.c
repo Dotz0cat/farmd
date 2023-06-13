@@ -177,7 +177,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
         return returnbuffer;
     }
 
-    if (field_list == NULL) {
+    if (*field_list == NULL) {
         *field_list = make_fields_list(get_number_of_fields(db));
         if (*field_list == NULL) {
             evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
