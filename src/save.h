@@ -86,7 +86,7 @@ int add_item_to_silo(sqlite3 *db, const char *item, const enum item_status statu
 int add_tree(sqlite3 *db, const int index);
 int remove_tree(sqlite3 *db, const int index);
 int set_tree_type(sqlite3 *db, const int index, const char *type);
-const char *get_tree_type(sqlite3 *db, const int tree_number);
+char *get_tree_type(sqlite3 *db, const int tree_number);
 
 int set_tree_time(sqlite3 *db, const int index, const time_t time);
 time_t get_tree_time(sqlite3 *db, const int index);
@@ -100,7 +100,7 @@ int get_tree_maturity(sqlite3 *db, const int index);
 int add_field(sqlite3 *db, const int index);
 int remove_field(sqlite3 *db, const int index);
 int set_field_type(sqlite3 *db, const int index, const char *type);
-const char *get_field_type(sqlite3 *db, const int field_number);
+char *get_field_type(sqlite3 *db, const int field_number);
 
 int set_field_time(sqlite3 *db, const int index, const time_t time);
 time_t get_field_time(sqlite3 *db, const int index);

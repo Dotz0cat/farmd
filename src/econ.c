@@ -22,11 +22,7 @@ This file is part of farmd.
 struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     enum item_type type = get_product_type_string(item);
 
@@ -147,11 +143,7 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
 struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     enum item_type type =  get_product_type_string(item);
 
@@ -256,11 +248,7 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
 struct evbuffer *get_item_buy_price(sqlite3 *db, const char *item_name, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     enum item_type type =  get_product_type_string(item_name);
 
@@ -299,11 +287,7 @@ struct evbuffer *get_item_buy_price(sqlite3 *db, const char *item_name, int *cod
 struct evbuffer *get_item_sell_price(sqlite3 *db, const char *item_name, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     enum item_type type =  get_product_type_string(item_name);
 

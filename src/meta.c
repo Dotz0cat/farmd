@@ -45,11 +45,7 @@ void xp_check(sqlite3 *db) {
 struct evbuffer *view_money(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int money = get_money(db);
     evbuffer_add_printf(returnbuffer, "money: %d\r\n", money);
@@ -61,11 +57,7 @@ struct evbuffer *view_money(sqlite3 *db, int *code) {
 struct evbuffer *view_level(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int level = get_level(db);
     evbuffer_add_printf(returnbuffer, "level: %d\r\n", level);
@@ -77,11 +69,7 @@ struct evbuffer *view_level(sqlite3 *db, int *code) {
 struct evbuffer *view_xp(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int xp = get_xp(db);
     evbuffer_add_printf(returnbuffer, "xp: %d\r\n", xp);
@@ -93,11 +81,7 @@ struct evbuffer *view_xp(sqlite3 *db, int *code) {
 struct evbuffer *view_skill_points(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int skill_points = get_skill_points(db);
     evbuffer_add_printf(returnbuffer, "Skill points: %d\r\n", skill_points);
@@ -167,6 +151,7 @@ enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item) 
             break;
         }
     }
+    return COULD_NOT_CONSUME_OR_BUY;
 }
 
 enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const char *item, const int price) {
@@ -208,4 +193,5 @@ enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const c
             break;
         }
     }
+    return COULD_NOT_CONSUME_OR_BUY;
 }

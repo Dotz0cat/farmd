@@ -22,6 +22,12 @@ This file is part of farmd.
 
 #include "loop.h"
 
+#define TEST_METHOD(a, b) \
+if (evhttp_request_get_command(a) != b) { \
+    evhttp_send_reply(a, HTTP_INTERNAL, "Client", NULL); \
+    return; \
+}
+
 static void set_callbacks(struct evhttp *base, loop_context *context);
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void *user_data);
@@ -29,10 +35,16 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data);
 static void sigusr1_cb(evutil_socket_t sig, short events, void *user_data);
 static void sigusr2_cb(evutil_socket_t sig, short events, void *user_data);
 
+static struct evhttp_bound_socket *make_socket(struct evhttp *evhttp_base, int port);
 static struct evhttp_bound_socket *make_http_socket(loop_context *context);
 static struct evhttp_bound_socket *make_https_socket(loop_context *context);
+static void new_http(loop_context *context);
+static void new_https(loop_context *context);
+static void reload_socket(struct evhttp *base, struct evhttp_bound_socket **sock, int port, int old_port);
 
 static struct bufferevent *make_ssl_bufferevent(struct event_base *base, void *user_data);
+
+static void reload_ssl_keys(SSL_CTX *ctx, const char *new_pub_key, const char *old_pub_key, const char *new_priv_key, const char *old_priv_key);
 
 static void generic_http_cb(struct evhttp_request *req, void *arg);
 

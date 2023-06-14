@@ -22,11 +22,7 @@ This file is part of farmd.
 struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int number_of_items = silo_query_db(db, item);
 
@@ -40,11 +36,7 @@ struct evbuffer *silo_query(sqlite3 *db, const char *item, int *code) {
 struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int max = get_silo_max(db);
 
@@ -64,11 +56,7 @@ struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
 struct evbuffer *silo_max(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int max = get_silo_max(db);
 
@@ -82,11 +70,7 @@ struct evbuffer *silo_max(sqlite3 *db, int *code) {
 struct evbuffer *silo_level(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int barn_level = get_silo_meta_property(db, "Level");
 
@@ -100,11 +84,7 @@ struct evbuffer *silo_level(sqlite3 *db, int *code) {
 struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     //get current
     int current_level = get_silo_meta_property(db, "Level");

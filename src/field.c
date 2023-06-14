@@ -29,11 +29,7 @@ static const struct timeval field_time[] = {
 struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-     if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
@@ -74,11 +70,7 @@ struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code) {
 struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-     if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
@@ -165,11 +157,7 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
 struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
@@ -311,11 +299,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
 struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     //check skill tree first
     int current = get_number_of_fields(db);
@@ -384,4 +368,101 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
     evbuffer_add_printf(returnbuffer, "sucessfully bought field\r\n");
     *code = 200;
     return returnbuffer;
+}
+
+void populate_fields(sqlite3 *db, fields_list **field_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+
+    //populate fields
+    int fields = get_number_of_fields(db);
+
+    *field_list = make_fields_list(fields);
+
+    if (fields <= 0) {
+        return;
+    }
+
+    fields_list *list = *field_list;
+    for (int i = 0; i < fields; i++) {
+        char *field_type = get_field_type(db, i);
+        list->type = field_crop_string_to_enum(field_type);
+        free(field_type);
+
+        if (list->type != NONE_FIELD) {
+            setup_field_completion(db, list, base, cb);
+        }
+        list = list->next;
+    }
+}
+
+void setup_field_completion(sqlite3 *db, fields_list *list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+    if (get_field_completion(db, list->field_number) == 0) {
+        time_t now = time(NULL);
+        time_t time_from_db = get_field_time(db, list->field_number);
+
+        if (time_from_db > now) {
+            //make an event as it has not finshed
+            struct timeval tv;
+            tv.tv_sec = time_from_db - now;
+            tv.tv_usec = 0;
+
+            struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+            box->list = list;
+            box->db = db;
+            list->event = event_new(base, -1, 0, cb, box);
+
+            event_add(list->event, &tv);
+        }
+        else {
+            //if it is not less then it is equal or greater
+            list->completion = 1;
+            set_field_completion(db, list->field_number, 1);
+        }
+    }
+    else {
+        list->completion = 1;
+    }
+}
+
+void free_fields(fields_list **list) {
+    if (*list != NULL) {
+        fields_list *field_list = *list;
+        while (field_list != NULL) {
+            if (field_list->event != NULL) {
+                event_del(field_list->event);
+                void *temp;
+                if ((temp = event_get_callback_arg(field_list->event)) != NULL) {
+                    free(temp);
+                }
+                event_free(field_list->event);
+            }
+            fields_list *temp = field_list;
+            field_list = field_list->next;
+            free(temp);
+        }
+    }
+    *list = NULL;
+}
+
+void ping_fields(sqlite3 *db) {
+    int fields = get_number_of_fields(db);
+    if (fields <= 0) {
+        return;
+    }
+    for (int i = 0; i < fields; i++) {
+        char *field_type = get_field_type(db, i);
+        enum field_crop type = field_crop_string_to_enum(field_type);
+        free(field_type);
+
+        if (type != NONE_FIELD) {
+
+            if (get_field_completion(db, i) == 0) {
+                time_t now = time(NULL);
+                time_t time_from_db = get_field_time(db, i);
+
+                if (time_from_db <= now) {
+                    set_field_completion(db, i, 1);
+                }
+            }
+        }
+    }
 }

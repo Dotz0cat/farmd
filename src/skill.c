@@ -28,11 +28,7 @@ const struct dependency_map dep_map[] = {
 struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     const char *sanitized_string;
 
@@ -136,11 +132,8 @@ const char *skill_sanitize(const char *skill) {
 struct evbuffer *skill_status(sqlite3 *db, const char *skill, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if(db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+    
     const char *sanitized_string = skill_sanitize(skill);
 
     if (sanitized_string == NULL) {

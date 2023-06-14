@@ -34,4 +34,10 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code);
 struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code);
 
+void populate_trees(sqlite3 *db, trees_list **tree_list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg), void (*ready_cb)(evutil_socket_t fd, short events, void *arg));
+int setup_tree_maturity(sqlite3 *db, trees_list *list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg));
+void setup_tree_completion(sqlite3 *db, trees_list *list, struct event_base *base, int set_maturity, void (*ready_cb)(evutil_socket_t fd, short events, void *arg));
+void free_trees(trees_list **list);
+void ping_trees(sqlite3 *db);
+
 #endif /* TREE_H */

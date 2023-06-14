@@ -26,6 +26,13 @@ This file is part of farmd.
 #include "list.h"
 #include "storage.h"
 
+#define CHECK_SAVE_OPEN(a, b, c) \
+if (a == NULL) { \
+    evbuffer_add_printf(b, "no save open\r\n"); \
+    *c = 500; \
+    return b; \
+}
+
 enum money_errors {
     NO_MONEY_ERROR,
     NOT_ENOUGH,

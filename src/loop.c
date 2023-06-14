@@ -78,46 +78,15 @@ void loop_run(loop_context *context) {
     if (!context->event_box->signal_sigusr2 || event_add(context->event_box->signal_sigusr2, NULL) < 0) abort();
 
     if (context->pre_init_info->settings->https_enable != 0) {
-        if ((context->event_box->https_socket = make_https_socket(context)) == NULL) {
-            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
-            abort();
-        }
+        new_https(context);
 
         //make http socket if http only is false
         if (context->pre_init_info->settings->https_only == 0) {
-            if ((context->event_box->http_socket = make_http_socket(context)) == NULL) {
-                syslog(LOG_WARNING, "evhttp_accept_socket() failed");
-                abort();
-            }
-
-            set_callbacks(context->event_box->http_base, context);
+            new_http(context);
         }
-
-        context->ssl_ctx = SSL_CTX_new(TLS_server_method());
-
-        if (context->pre_init_info->settings->pub_key != NULL) {
-            SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
-        }
-
-        if (context->pre_init_info->settings->priv_key != NULL) {
-            SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
-        }
-
-        if (SSL_CTX_check_private_key(context->ssl_ctx)) {
-            syslog(LOG_WARNING, "ssl private key does not match");
-        }
-
-        evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
-
-        set_callbacks(context->event_box->https_base, context);
     }
     else {
-        if ((context->event_box->http_socket = make_http_socket(context)) == NULL) {
-            syslog(LOG_WARNING, "evhttp_accept_socket() failed");
-            abort();
-        }
-
-        set_callbacks(context->event_box->http_base, context);
+        new_http(context);
     }
 
     if (context->pre_init_info->save != NULL) {
@@ -243,7 +212,6 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
     loop_context *context = user_data;
 
     //cache port
-
     int http_port = context->pre_init_info->settings->http_port;
     int https_port = context->pre_init_info->settings->https_port;
     int https_only = context->pre_init_info->settings->https_only;
@@ -255,7 +223,6 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
     else {
         pub_key = NULL;
     }
-
     char *priv_key;
     if (context->pre_init_info->settings->priv_key != NULL) {
         priv_key = strdup(context->pre_init_info->settings->priv_key);
@@ -273,80 +240,21 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
         //test if was already enabled
         if (https_enable == context->pre_init_info->settings->https_enable) {
             //reload socket if the port has changed
-            if (https_port != context->pre_init_info->settings->https_port) {
-                struct evhttp_bound_socket *socket = make_https_socket(context);
-
-                evhttp_del_accept_socket(context->event_box->https_base, context->event_box->https_socket);
-
-                context->event_box->https_socket = socket;
-            }
-
-            if (pub_key != NULL && context->pre_init_info->settings->pub_key != NULL) {
-                if (strcmp(pub_key, context->pre_init_info->settings->pub_key) != 0) {
-                    // if they are not equal and not null set
-                    if (context->pre_init_info->settings->pub_key != NULL) {
-                        SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
-                    }
-                }
-            } else if (context->pre_init_info->settings->pub_key != NULL) {
-                SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
-            }
-
-            if (priv_key != NULL && context->pre_init_info->settings->priv_key != NULL) {
-                if (strcmp(priv_key, context->pre_init_info->settings->priv_key) != 0) {
-                    // if they are not equal and not null set
-                    if (context->pre_init_info->settings->priv_key != NULL) {
-                        SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
-                    }
-                }
-            } else if (context->pre_init_info->settings->priv_key != NULL) {
-                SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
-            }
-
-            if (SSL_CTX_check_private_key(context->ssl_ctx)) {
-                syslog(LOG_WARNING, "ssl private key does not match");
-            }
+            reload_socket(context->event_box->https_base, &context->event_box->https_socket, context->pre_init_info->settings->https_port, https_port);
+            reload_ssl_keys(context->ssl_ctx, context->pre_init_info->settings->pub_key, pub_key, context->pre_init_info->settings->priv_key, priv_key);
         }
         else {
             //make the socket
-            context->event_box->https_socket = make_https_socket(context);
-
-            //ssl stuff
-            context->ssl_ctx = SSL_CTX_new(TLS_server_method());
-
-            if (context->pre_init_info->settings->pub_key != NULL) {
-                SSL_CTX_use_certificate_file(context->ssl_ctx, context->pre_init_info->settings->pub_key, SSL_FILETYPE_PEM);
-            }
-
-            if (context->pre_init_info->settings->priv_key != NULL) {
-                SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->pre_init_info->settings->priv_key, SSL_FILETYPE_PEM);
-            }
-
-            if (SSL_CTX_check_private_key(context->ssl_ctx)) {
-                syslog(LOG_WARNING, "ssl private key does not match");
-            }
-
-            //set callback
-            evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
-
-            set_callbacks(context->event_box->https_base, context);
+            new_https(context);
         }
 
         if (https_only == 0 && context->pre_init_info->settings->https_only == 0) {
             //reload socket if the port has changed
-            if (http_port != context->pre_init_info->settings->http_port) {
-                struct evhttp_bound_socket *socket = make_http_socket(context);
-
-                evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
-
-                context->event_box->http_socket = socket;
-            }
+            reload_socket(context->event_box->http_base, &context->event_box->http_socket, context->pre_init_info->settings->http_port, http_port);
         }
         else if (https_only != 0 && context->pre_init_info->settings->https_only == 0) {
             //make a http base and registar callbacks
-            context->event_box->http_socket = make_http_socket(context);
-
-            set_callbacks(context->event_box->http_base, context);
+            new_http(context);
         }
         else if (https_only == 0 && context->pre_init_info->settings->https_only != 0) {
             //remove http base
@@ -359,19 +267,11 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
     else {
         if (https_only != 0) {
             //it was https only now its http only due to https being disabled
-            context->event_box->http_socket = make_http_socket(context);
-
-            set_callbacks(context->event_box->http_base, context);
+            new_http(context);
         }
         else {
             //reload socket if the port has changed
-            if (http_port != context->pre_init_info->settings->http_port) {
-                struct evhttp_bound_socket *socket = make_http_socket(context);
-
-                evhttp_del_accept_socket(context->event_box->http_base, context->event_box->http_socket);
-
-                context->event_box->http_socket = socket;
-            }
+            reload_socket(context->event_box->http_base, &context->event_box->http_socket, context->pre_init_info->settings->http_port, http_port);
         }
 
         if (https_enable != 0) {
@@ -412,7 +312,7 @@ static void sigusr2_cb(evutil_socket_t sig, short events, void *user_data) {
     return;
 }
 
-static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
+static struct evhttp_bound_socket *make_socket(struct evhttp *evhttp_base, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sock < 0) {
@@ -432,7 +332,7 @@ static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = 0;
     //get port set in config
-    sin.sin_port = htons(context->pre_init_info->settings->http_port);
+    sin.sin_port = htons(port);
     if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
         syslog(LOG_WARNING, "failed to bind socket");
         abort();
@@ -443,6 +343,10 @@ static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
         abort();
     }
 
+    return evhttp_accept_socket_with_handle(evhttp_base, sock);
+}
+
+static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
     if (context->event_box->http_base == NULL) {
         context->event_box->http_base = evhttp_new(context->event_box->base);
         if (!context->event_box->http_base) {
@@ -451,40 +355,10 @@ static struct evhttp_bound_socket *make_http_socket(loop_context *context) {
         }
     }
 
-    return evhttp_accept_socket_with_handle(context->event_box->http_base, sock);
+    return make_socket(context->event_box->http_base, context->pre_init_info->settings->http_port);
 }
 
 static struct evhttp_bound_socket *make_https_socket(loop_context *context) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sock < 0) {
-        syslog(LOG_WARNING, "failed to make socket");
-        abort();
-    }
-
-    int reuseaddr_opt_val = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt_val, sizeof(int));
-
-    if (evutil_make_socket_nonblocking(sock) < 0) {
-        syslog(LOG_WARNING, "failed to make socket nonblocking");
-        abort();
-    }
-
-    struct sockaddr_in sin;
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = 0;
-    //get port set in config
-    sin.sin_port = htons(context->pre_init_info->settings->https_port);
-    if (bind(sock, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
-        syslog(LOG_WARNING, "failed to bind socket");
-        abort();
-    }
-
-    if (listen(sock, 8) < 0) {
-        syslog(LOG_WARNING, "listen() failed");
-        abort();
-    }
-
     if (context->event_box->https_base == NULL) {
         context->event_box->https_base = evhttp_new(context->event_box->base);
         if (!context->event_box->https_base) {
@@ -493,7 +367,42 @@ static struct evhttp_bound_socket *make_https_socket(loop_context *context) {
         }
     }
 
-    return evhttp_accept_socket_with_handle(context->event_box->https_base, sock);
+    return make_socket(context->event_box->https_base, context->pre_init_info->settings->https_port);
+}
+
+static void new_http(loop_context *context) {
+    context->event_box->http_socket = make_http_socket(context);
+    if (context->event_box->http_socket == NULL) {
+        syslog(LOG_WARNING, "evhttp_accept_socket() for http failed");
+        abort();
+    }
+
+    set_callbacks(context->event_box->http_base, context);
+}
+
+static void new_https(loop_context *context) {
+    context->event_box->https_socket = make_https_socket(context);
+    if (context->event_box->https_socket == NULL) {
+        syslog(LOG_WARNING, "evhttp_accept_socket() for https failed");
+        abort();
+    }
+
+    //ssl stuff
+    context->ssl_ctx = SSL_CTX_new(TLS_server_method());
+    reload_ssl_keys(context->ssl_ctx, context->pre_init_info->settings->pub_key, NULL, context->pre_init_info->settings->priv_key, NULL);
+
+    evhttp_set_bevcb(context->event_box->https_base, make_ssl_bufferevent, context);
+    set_callbacks(context->event_box->https_base, context);
+}
+
+static void reload_socket(struct evhttp *base, struct evhttp_bound_socket **sock, int port, int old_port) {
+    if (old_port != port) {
+        struct evhttp_bound_socket *socket = make_socket(base, port);
+
+        evhttp_del_accept_socket(base, *sock);
+
+        *sock = socket;
+    }
 }
 
 static struct bufferevent *make_ssl_bufferevent(struct event_base *base, void *user_data) {
@@ -508,6 +417,32 @@ static struct bufferevent *make_ssl_bufferevent(struct event_base *base, void *u
     bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
     
     return bev;
+}
+
+static void reload_ssl_keys(SSL_CTX *ctx, const char *new_pub_key, const char *old_pub_key, const char *new_priv_key, const char *old_priv_key) {
+    if (old_pub_key != NULL && new_pub_key != NULL) {
+        if (strcmp(old_pub_key, new_pub_key) != 0) {
+            // if they are not equal and not null set
+            SSL_CTX_use_certificate_file(ctx, new_pub_key, SSL_FILETYPE_PEM);
+        }
+    }
+    else if (new_pub_key != NULL) {
+        SSL_CTX_use_certificate_file(ctx, new_pub_key, SSL_FILETYPE_PEM);
+    }
+
+    if (old_priv_key != NULL && new_priv_key != NULL) {
+        if (strcmp(old_priv_key, new_priv_key) != 0) {
+            // if they are not equal and not null set
+            SSL_CTX_use_PrivateKey_file(ctx, new_priv_key, SSL_FILETYPE_PEM);
+        }
+    }
+    else if (new_priv_key != NULL) {
+        SSL_CTX_use_PrivateKey_file(ctx, new_priv_key, SSL_FILETYPE_PEM);
+    }
+
+    if (SSL_CTX_check_private_key(ctx)) {
+        syslog(LOG_WARNING, "ssl private key does not match");
+    }
 }
 
 static void generic_http_cb(struct evhttp_request *req, void *arg) {
@@ -543,10 +478,7 @@ static char *get_post_args(struct evhttp_request *req) {
 static void barn_query_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -564,10 +496,7 @@ static void barn_query_cb(struct evhttp_request *req, void *arg) {
 static void silo_query_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -585,10 +514,7 @@ static void silo_query_cb(struct evhttp_request *req, void *arg) {
 static void create_save_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db != NULL) {
         struct evbuffer *returnbuffer = evbuffer_new();
@@ -658,10 +584,7 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
 static void open_save_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db != NULL) {
         struct evbuffer *returnbuffer = evbuffer_new();
@@ -706,10 +629,7 @@ static void open_save_cb(struct evhttp_request *req, void *arg) {
 static void close_save_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db == NULL) {
         struct evbuffer *returnbuffer = evbuffer_new();
@@ -728,10 +648,7 @@ static void close_save_cb(struct evhttp_request *req, void *arg) {
 }
 
 static void ping_save_cb(struct evhttp_request *req, void *arg) {
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     //save open check here if implented
 
@@ -772,130 +689,9 @@ static int open_save(const char *file_name, loop_context *context) {
         return rc;
     }
 
-    //make fields list here
-    context->field_list = make_fields_list(get_number_of_fields(context->db));
+    populate_fields(context->db, &context->field_list, context->event_box->base, field_ready_cb);
 
-    //populate fields
-    int fields = get_number_of_fields(context->db);
-    if (fields > 0) {
-        fields_list *list = context->field_list;
-        for (int i = 0; i < fields; i++) {
-            const char *field_type = get_field_type(context->db, i);
-            list->type = field_crop_string_to_enum(field_type);
-            free((char *) field_type);
-
-            if (list->type != NONE_FIELD) {
-
-                if (get_field_completion(context->db, list->field_number) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_field_time(context->db, list->field_number);
-
-                    if (time_from_db > now) {
-                        //make an event as it has not finshed
-                        struct timeval tv;
-                        tv.tv_sec = time_from_db - now;
-                        tv.tv_usec = 0;
-
-                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
-                        box->list = list;
-                        box->db = context->db;
-                        list->event = event_new(context->event_box->base, -1, 0, field_ready_cb, box);
-
-                        event_add(list->event, &tv);
-                    }
-                    else {
-                        //if it is not less then it is equal or greater
-                        list->completion = 1;
-                        set_field_completion(context->db, list->field_number, 1);
-                    }
-                }
-                else {
-                    list->completion = 1;
-                }
-            }
-            
-
-            list = list->next;
-        }
-    }
-
-    context->tree_list = make_trees_list(get_number_of_tree_plots(context->db));
-
-    //populate trees
-    int trees = get_number_of_tree_plots(context->db);
-    if (trees > 0) {
-        trees_list *list = context->tree_list;
-        for (int i = 0; i < trees; i++) {
-            const char *tree_type = get_tree_type(context->db, i);
-            list->type = tree_crop_string_to_enum(tree_type);
-            free((char *) tree_type);
-            //events here later
-
-            if (list->type != NONE_TREE) {
-                int set_maturity = 0;
-                
-                if (get_tree_maturity(context->db, list->tree_number) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_tree_time(context->db, list->tree_number);
-
-                    if (time_from_db > now) {
-                        //make an event as it has not finshed
-                        struct timeval tv;
-                        tv.tv_sec = time_from_db - now;
-                        tv.tv_usec = 0;
-
-                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
-                        box->list = list;
-                        box->db = context->db;
-                        list->event = event_new(context->event_box->base, -1, 0, tree_mature_cb, box);
-
-                        event_add(list->event, &tv);
-                    }
-                    else {
-                        //if it is not less then it is equal or greater
-                        list->maturity = 1;
-                        set_tree_maturity(context->db, list->tree_number, 1);
-                        set_maturity = 1;
-                    }
-                }
-                else {
-                    list->maturity = 1;
-                }
-
-                if (get_tree_completion(context->db, list->tree_number) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_tree_time(context->db, list->tree_number);
-                    if (set_maturity == 1) {
-                        time_from_db = time_from_db + tree_time[list->type].tv_sec;
-                    }
-
-                    if (time_from_db > now) {
-                        //make an event as it has not finshed
-                        struct timeval tv;
-                        tv.tv_sec = time_from_db - now;
-                        tv.tv_usec = 0;
-
-                        struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
-                        box->list = list;
-                        box->db = context->db;
-                        list->event = event_new(context->event_box->base, -1, 0, tree_harvest_ready_cb, box);
-
-                        event_add(list->event, &tv);
-                    }
-                    else {
-                        //if it is not less then it is equal or greater
-                        list->completion = 1;
-                        set_tree_completion(context->db, list->tree_number, 1);
-                    }
-                }
-                else {
-                    list->completion = 1;
-                }
-            }
-
-            list = list->next;
-        }
-    }
+    populate_trees(context->db, &context->tree_list, context->event_box->base, tree_mature_cb, tree_harvest_ready_cb);
 
     return 0;
 }
@@ -927,40 +723,10 @@ static int close_save(loop_context *context) {
     context->db = NULL;
 
     //free fields
-    if (context->field_list != NULL) {
-        fields_list *field_list = context->field_list;
-        while (field_list != NULL) {
-            if (field_list->event != NULL) {
-                event_del(field_list->event);
-                void *temp;
-                if ((temp = event_get_callback_arg(field_list->event)) != NULL) {
-                    free(temp);
-                }
-                event_free(field_list->event);
-            }
-            fields_list *temp = field_list;
-            field_list = field_list->next;
-            free(temp);
-        }
-    }
+    free_fields(&context->field_list);
 
     //free trees
-    if (context->tree_list != NULL) {
-        trees_list *tree_list = context->tree_list;
-        while (tree_list != NULL) {
-            if (tree_list->event != NULL) {
-                event_del(tree_list->event);
-                void *temp;
-                if ((temp = event_get_callback_arg(tree_list->event)) != NULL) {
-                    free(temp);
-                }
-                event_free(tree_list->event);
-            }
-            trees_list *temp = tree_list;
-            tree_list = tree_list->next;
-            free(temp);
-        }
-    }
+    free_trees(&context->tree_list);
 
     return 0;
 }
@@ -973,62 +739,9 @@ static int ping_save(const char *filename) {
         return -1;
     }
 
-    int fields = get_number_of_fields(db);
-    if (fields > 0) {
-        for (int i = 0; i < fields; i++) {
-            const char *field_type = get_field_type(db, i);
-            enum field_crop type = field_crop_string_to_enum(field_type);
-            free((char *) field_type);
+    ping_fields(db);
 
-            if (type != NONE_FIELD) {
-
-                if (get_field_completion(db, i) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_field_time(db, i);
-
-                    if (time_from_db <= now) {
-                        set_field_completion(db, i, 1);
-                    }
-                }
-            }
-        }
-    }
-
-    //run tree code
-    int trees = get_number_of_tree_plots(db);
-    if (trees > 0) {
-        for (int i = 0; i < trees; i++) {
-            const char *tree_type = get_tree_type(db, i);
-            enum tree_crop type = tree_crop_string_to_enum(tree_type);
-            free((char *) tree_type);
-
-            if (type != NONE_TREE) {
-                int set_maturity = 0;
-                
-                if (get_tree_maturity(db, i) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_tree_time(db, i);
-
-                    if (time_from_db <= now) {
-                        set_tree_maturity(db, i, 1);
-                        set_maturity = 1;
-                    }
-                }
-
-                if (get_tree_completion(db, i) == 0) {
-                    time_t now = time(NULL);
-                    time_t time_from_db = get_tree_time(db, i);
-                    if (set_maturity == 1) {
-                        time_from_db = time_from_db + tree_time[type].tv_sec;
-                    }
-
-                    if (time_from_db <= now) {
-                        set_tree_completion(db, i, 1);
-                    }
-                }
-            }
-        }
-    }
+    ping_trees(db);
 
     close_save_db(db);
 
@@ -1038,10 +751,7 @@ static int ping_save(const char *filename) {
 static void get_barn_allocation_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
 
@@ -1055,10 +765,7 @@ static void get_barn_allocation_cb(struct evhttp_request *req, void *arg) {
 static void get_silo_allocation_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
 
@@ -1072,10 +779,7 @@ static void get_silo_allocation_cb(struct evhttp_request *req, void *arg) {
 static void get_money_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1088,10 +792,7 @@ static void get_money_cb(struct evhttp_request *req, void *arg) {
 static void get_level_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1104,10 +805,7 @@ static void get_level_cb(struct evhttp_request *req, void *arg) {
 static void get_xp_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1120,10 +818,7 @@ static void get_xp_cb(struct evhttp_request *req, void *arg) {
 static void get_skill_points_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1136,10 +831,7 @@ static void get_skill_points_cb(struct evhttp_request *req, void *arg) {
 static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1154,10 +846,7 @@ static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
 }
 
 static void get_version_cb(struct evhttp_request *req, void *arg) {
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     struct evbuffer *returnbuffer = evbuffer_new();
     evbuffer_add_printf(returnbuffer, "farmd version: %s\r\n", VERSION);
@@ -1168,10 +857,7 @@ static void get_version_cb(struct evhttp_request *req, void *arg) {
 static void get_barn_max_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1184,10 +870,7 @@ static void get_barn_max_cb(struct evhttp_request *req, void *arg) {
 static void get_silo_max_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1200,10 +883,7 @@ static void get_silo_max_cb(struct evhttp_request *req, void *arg) {
 static void field_status_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1216,10 +896,7 @@ static void field_status_cb(struct evhttp_request *req, void *arg) {
 static void field_harvest_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1232,10 +909,7 @@ static void field_harvest_cb(struct evhttp_request *req, void *arg) {
 static void plant_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1274,10 +948,7 @@ static void field_ready_cb(evutil_socket_t fd, short events, void *user_data) {
 static void buy_field_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1291,10 +962,7 @@ static void buy_field_cb(struct evhttp_request *req, void *arg) {
 static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1308,10 +976,7 @@ static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
 static void buy_skill_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1338,10 +1003,7 @@ static void buy_skill_cb(struct evhttp_request *req, void *arg) {
 static void plant_tree_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1405,10 +1067,7 @@ static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void *user_d
 static void tree_harvest_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1421,10 +1080,7 @@ static void tree_harvest_cb(struct evhttp_request *req, void *arg) {
 static void tree_status_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1437,10 +1093,7 @@ static void tree_status_cb(struct evhttp_request *req, void *arg) {
 static void buy_item_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1467,10 +1120,7 @@ static void buy_item_cb(struct evhttp_request *req, void *arg) {
 static void sell_item_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
 
@@ -1497,10 +1147,7 @@ static void sell_item_cb(struct evhttp_request *req, void *arg) {
 static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
@@ -1517,10 +1164,7 @@ static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
 static void item_sell_price_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
 
@@ -1537,10 +1181,7 @@ static void item_sell_price_cb(struct evhttp_request *req, void *arg) {
 static void get_barn_level_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
 
@@ -1555,10 +1196,7 @@ static void get_barn_level_cb(struct evhttp_request *req, void *arg) {
 static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_GET) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
 
@@ -1573,10 +1211,7 @@ static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
 static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
 
@@ -1589,12 +1224,9 @@ static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
 }
 
 static void upgrade_silo_cb(struct evhttp_request *req, void *arg) {
-        loop_context *context = arg;
+    loop_context *context = arg;
 
-    if (evhttp_request_get_command(req) != EVHTTP_REQ_POST) {
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", NULL);
-        return;
-    }
+    TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
 

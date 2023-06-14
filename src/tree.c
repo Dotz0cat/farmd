@@ -35,11 +35,7 @@ static const struct timeval tree_maturity_time[] = {
 
 struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int current = get_number_of_tree_plots(db);
     int skill_level = get_skill_status(db, "TreePlots");
@@ -108,11 +104,7 @@ struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
 struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *crop, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
@@ -274,11 +266,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *user_data), int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
@@ -383,11 +371,7 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
 struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code) {
     struct evbuffer * returnbuffer = evbuffer_new();
 
-        if (db == NULL) {
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        *code = 500;
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
@@ -433,4 +417,152 @@ struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code) {
 
     *code = 200;
     return returnbuffer;
+}
+
+void populate_trees(sqlite3 *db, trees_list **tree_list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg), void (*ready_cb)(evutil_socket_t fd, short events, void *arg)) {
+    int trees = get_number_of_tree_plots(db);
+
+    *tree_list = make_trees_list(trees);
+
+    //populate trees
+    if (trees >= 0) {
+        return;
+    }
+    trees_list *list = *tree_list;
+    for (int i = 0; i < trees; i++) {
+        char *tree_type = get_tree_type(db, i);
+        list->type = tree_crop_string_to_enum(tree_type);
+        free(tree_type);
+
+        if (list->type != NONE_TREE) {
+            int set_maturity = 0;
+            
+            set_maturity = setup_tree_maturity(db, list, base, mature_cb);
+
+            setup_tree_completion(db, list, base, set_maturity, ready_cb);
+        }
+        list = list->next;
+    }
+}
+
+int setup_tree_maturity(sqlite3 *db, trees_list *list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg)) {
+    if (get_tree_maturity(db, list->tree_number) == 0) {
+        time_t now = time(NULL);
+        time_t time_from_db = get_tree_time(db, list->tree_number);
+
+        if (time_from_db > now) {
+            //make an event as it has not finshed
+            struct timeval tv;
+            tv.tv_sec = time_from_db - now;
+            tv.tv_usec = 0;
+
+            struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+            box->list = list;
+            box->db = db;
+            list->event = event_new(base, -1, 0, mature_cb, box);
+
+            event_add(list->event, &tv);
+        }
+        else {
+            //if it is not less then it is equal or greater
+            list->maturity = 1;
+            set_tree_maturity(db, list->tree_number, 1);
+            return 1;
+        }
+    }
+    else {
+        list->maturity = 1;
+    }
+
+    return 0;
+}
+
+void setup_tree_completion(sqlite3 *db, trees_list *list, struct event_base *base, int set_maturity, void (*ready_cb)(evutil_socket_t fd, short events, void *arg)) {
+    if (get_tree_completion(db, list->tree_number) == 0) {
+        time_t now = time(NULL);
+        time_t time_from_db = get_tree_time(db, list->tree_number);
+        if (set_maturity == 1) {
+            time_from_db = time_from_db + tree_time[list->type].tv_sec;
+        }
+
+        if (time_from_db > now) {
+            //make an event as it has not finshed
+            struct timeval tv;
+            tv.tv_sec = time_from_db - now;
+            tv.tv_usec = 0;
+
+            struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+            box->list = list;
+            box->db = db;
+            list->event = event_new(base, -1, 0, ready_cb, box);
+
+            event_add(list->event, &tv);
+        }
+        else {
+            //if it is not less then it is equal or greater
+            list->completion = 1;
+            set_tree_completion(db, list->tree_number, 1);
+        }
+    }
+    else {
+        list->completion = 1;
+    }
+}
+
+void free_trees(trees_list **list) {
+    if (*list != NULL) {
+        trees_list *tree_list = *list;
+        while (tree_list != NULL) {
+            if (tree_list->event != NULL) {
+                event_del(tree_list->event);
+                void *temp;
+                if ((temp = event_get_callback_arg(tree_list->event)) != NULL) {
+                    free(temp);
+                }
+                event_free(tree_list->event);
+            }
+            trees_list *temp = tree_list;
+            tree_list = tree_list->next;
+            free(temp);
+        }
+    }
+    *list = NULL;
+}
+
+void ping_trees(sqlite3 *db) {
+    int trees = get_number_of_tree_plots(db);
+    if (trees > 0) {
+        return;
+    }
+    for (int i = 0; i < trees; i++) {
+        char *tree_type = get_tree_type(db, i);
+        enum tree_crop type = tree_crop_string_to_enum(tree_type);
+        free(tree_type);
+
+        if (type != NONE_TREE) {
+            int set_maturity = 0;
+            
+            if (get_tree_maturity(db, i) == 0) {
+                time_t now = time(NULL);
+                time_t time_from_db = get_tree_time(db, i);
+
+                if (time_from_db <= now) {
+                    set_tree_maturity(db, i, 1);
+                    set_maturity = 1;
+                }
+            }
+
+            if (get_tree_completion(db, i) == 0) {
+                time_t now = time(NULL);
+                time_t time_from_db = get_tree_time(db, i);
+                if (set_maturity == 1) {
+                    time_from_db = time_from_db + tree_time[type].tv_sec;
+                }
+
+                if (time_from_db <= now) {
+                    set_tree_completion(db, i, 1);
+                }
+            }
+        }
+    }
 }

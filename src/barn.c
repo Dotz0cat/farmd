@@ -22,11 +22,7 @@ This file is part of farmd.
 struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code) {
    struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int number_of_items = barn_query_db(db, item);
 
@@ -40,11 +36,7 @@ struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code) {
 struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int max = get_barn_max(db);
 
@@ -64,11 +56,7 @@ struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
 struct evbuffer *barn_max(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int max = get_barn_max(db);
 
@@ -82,11 +70,7 @@ struct evbuffer *barn_max(sqlite3 *db, int *code) {
 struct evbuffer *barn_level(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     int barn_level = get_barn_meta_property(db, "Level");
 
@@ -100,11 +84,7 @@ struct evbuffer *barn_level(sqlite3 *db, int *code) {
 struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
 
-    if (db == NULL) {
-        *code = 500;
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        return returnbuffer;
-    }
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     //get current
     int current_level = get_barn_meta_property(db, "Level");

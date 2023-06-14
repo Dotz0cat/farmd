@@ -1286,11 +1286,11 @@ int set_tree_type(sqlite3 *db, const int index, const char *type) {
     return 0;
 }
 
-const char *get_tree_type(sqlite3 *db, const int tree_number) {
+char *get_tree_type(sqlite3 *db, const int tree_number) {
     sqlite3_stmt *stmt;
 
     const unsigned char *tree_type = NULL;
-    const char *type = NULL;
+    char *type = NULL;
 
     char *sql = "SELECT Type FROM Trees WHERE TreeIndex == ?;";
 
@@ -1650,11 +1650,11 @@ int set_field_type(sqlite3 *db, const int index, const char *type) {
     return 0;
 }
 
-const char *get_field_type(sqlite3 *db, const int field_number) {
+char *get_field_type(sqlite3 *db, const int field_number) {
     sqlite3_stmt *stmt;
 
     const unsigned char *field_type = NULL;
-    const char *type = NULL;
+    char *type = NULL;
 
     char *sql = "SELECT Type FROM Fields WHERE FieldIndex == ?;";
 
