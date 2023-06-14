@@ -50,7 +50,7 @@ struct evbuffer *view_money(sqlite3 *db, int *code) {
     int money = get_money(db);
     evbuffer_add_printf(returnbuffer, "money: %d\r\n", money);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -62,7 +62,7 @@ struct evbuffer *view_level(sqlite3 *db, int *code) {
     int level = get_level(db);
     evbuffer_add_printf(returnbuffer, "level: %d\r\n", level);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -74,7 +74,7 @@ struct evbuffer *view_xp(sqlite3 *db, int *code) {
     int xp = get_xp(db);
     evbuffer_add_printf(returnbuffer, "xp: %d\r\n", xp);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -86,7 +86,7 @@ struct evbuffer *view_skill_points(sqlite3 *db, int *code) {
     int skill_points = get_skill_points(db);
     evbuffer_add_printf(returnbuffer, "Skill points: %d\r\n", skill_points);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -111,50 +111,7 @@ enum money_errors subtract_money(sqlite3 *db, const int amount) {
     return NO_MONEY_ERROR;
 }
 
-enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item) {
-    switch (remove_from_storage(db, item, 1)) {
-        case (NO_STORAGE_ERROR): {
-            return NO_CONSUME_OR_BUY_ERROR;
-            break;
-        }
-        case (BARN_UPDATE): {
-            return CONSUME_OR_BUY_BARN;
-            break;
-        }
-        case (SILO_UPDATE): {
-            return CONSUME_OR_BUY_SILO;
-            break;
-        }
-        case (BARN_SIZE):
-        case (SILO_SIZE): {
-            int price = item_buy_price_string(item);
-            switch (subtract_money(db, price)) {
-                case (NO_MONEY_ERROR): {
-                    return NO_CONSUME_OR_BUY_ERROR;
-                    break;
-                }
-                case (NOT_ENOUGH): {
-                    return CONSUME_OR_BUY_NOT_ENOUGH_MONEY;
-                    break;
-                }
-                case (ERROR_UPDATING): {
-                    return CONSUME_OR_BUY_MONEY_ERROR;
-                }
-            }
-            break;
-        }
-        case (BARN_ADD):
-        case (SILO_ADD):
-        case (STORAGE_NOT_HANDLED):
-        default: {
-            return COULD_NOT_CONSUME_OR_BUY;
-            break;
-        }
-    }
-    return COULD_NOT_CONSUME_OR_BUY;
-}
-
-enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const char *item, const int price) {
+enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item, const int price) {
     switch (remove_from_storage(db, item, 1)) {
         case (NO_STORAGE_ERROR): {
             return NO_CONSUME_OR_BUY_ERROR;

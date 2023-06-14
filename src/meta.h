@@ -33,6 +33,12 @@ if (a == NULL) { \
     return b; \
 }
 
+#define SET_CODE_INTERNAL_ERROR(a) \
+*a = 500;
+
+#define SET_CODE_OK(a) \
+*a = 200;
+
 enum money_errors {
     NO_MONEY_ERROR,
     NOT_ENOUGH,
@@ -57,7 +63,6 @@ struct evbuffer *view_skill_points(sqlite3 *db, int *code);
 enum money_errors add_money(sqlite3 *db, const int amount);
 enum money_errors subtract_money(sqlite3 *db, const int amount);
 
-enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item);
-enum consume_or_buy_errors consume_crops_or_cash_price_hint(sqlite3 *db, const char *item, const int price);
+enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item, const int price);
 
 #endif /* META_H */

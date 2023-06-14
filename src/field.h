@@ -35,8 +35,9 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
 struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code);
 
 void populate_fields(sqlite3 *db, fields_list **field_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
-void setup_field_completion(sqlite3 *db, fields_list *list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
 void free_fields(fields_list **list);
 void ping_fields(sqlite3 *db);
+
+void field_complete_set(struct box_for_list_and_db *box);
 
 #endif /* FIELD_H */

@@ -17,21 +17,7 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "tree.h"
-
-//enum, string, time, buy, sell, storage, item_type, maturity time
-#define X(a, b, c, d, e, f, g, h) [a]={c, 0}
-static const struct timeval tree_time[] = {
-    TREE_CROP_TABLE
-};
-#undef X
-
-//enum, string, time, buy, sell, storage, item_type, maturity time
-#define X(a, b, c, d, e, f, g, h) [a]={h, 0}
-static const struct timeval tree_maturity_time[] = {
-    TREE_CROP_TABLE
-};
-#undef X
+#include "tree_private.h"
 
 struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
@@ -47,27 +33,27 @@ struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
             case (NO_MONEY_ERROR): {
                 if (update_meta(db, 1, "TreePlots") != 0) {
                     evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
                 break;
             }
             case (NOT_ENOUGH): {
                 evbuffer_add_printf(returnbuffer, "not enough money to buy tree plot\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
                 break;
             }
             case (ERROR_UPDATING): {
                 evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
     }
     else {
         evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -76,7 +62,7 @@ struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
         for (int i = 0; i < get_number_of_tree_plots(db); i++) {
             if (add_tree(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -84,20 +70,20 @@ struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
     else {
         if (amend_trees_list(*tree_list, get_number_of_tree_plots(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "error amending tree list\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         for (int i = current; i < get_number_of_tree_plots(db); i++) {
             if (add_tree(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
     }
 
     evbuffer_add_printf(returnbuffer, "sucessfully bought tree plot\r\n");
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -108,7 +94,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -116,13 +102,13 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
         *tree_list = make_trees_list(get_number_of_tree_plots(db));
         if (*tree_list == NULL) {
             evbuffer_add_printf(returnbuffer, "could not make trees\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         for (int i = 0; i < get_number_of_tree_plots(db); i++) {
             if (add_tree(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -132,13 +118,13 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
     if ((current = get_number_of_trees_list(*tree_list)) < get_number_of_tree_plots(db)) {
         if (amend_trees_list(*tree_list, get_number_of_tree_plots(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "could not amend trees\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         for (int i = current; i < get_number_of_tree_plots(db); i++) {
             if (add_tree(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding tree to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -150,7 +136,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 
     if (type == NONE_TREE) {
         evbuffer_add_printf(returnbuffer, "%s is not a correct query\r\n", crop);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -158,7 +144,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 
     if (get_skill_status(db, sanitized_string) == 0) {
         evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -182,7 +168,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
                 list->event = event_new(base, -1, 0, cb, box);
                 if (list->event == NULL) {
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
             }
@@ -190,36 +176,36 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
             int price = tree_crop_buy_cost(type);
 
             //consume crops or cash
-            switch(consume_crops_or_cash_price_hint(db, sanitized_string, price)) {
+            switch(consume_crops_or_cash(db, sanitized_string, price)) {
                 case (NO_STORAGE_ERROR): {
                     break;
                 }
                 case (CONSUME_OR_BUY_BARN): {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_SILO): {
                     evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_NOT_ENOUGH_MONEY): {
                     evbuffer_add_printf(returnbuffer, "not enough money\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_MONEY_ERROR): {
                     evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
                 case (COULD_NOT_CONSUME_OR_BUY): {
                     evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
@@ -239,7 +225,7 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
             int rc = event_add(list->event, tv);
             if (rc != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
 
@@ -254,12 +240,12 @@ struct evbuffer *plant_tree(sqlite3 *db, trees_list **tree_list, const char *cro
 
     if (done == 0) {
         evbuffer_add_printf(returnbuffer, "no open tree plot\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     evbuffer_add_printf(returnbuffer, "planted tree plot: %d\r\n", tree_plot);
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -270,13 +256,13 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     if (tree_list == NULL) {
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -290,43 +276,43 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
                 }
                 case (BARN_UPDATE): {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (BARN_ADD): {
                     evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (BARN_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to barn size\r\n", list->tree_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_UPDATE): {
                     evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_ADD): {
                     evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to silo size\r\n", list->tree_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (STORAGE_NOT_HANDLED): {
                     evbuffer_add_printf(returnbuffer, "could not harvest tree%d due to not being implemented\r\n", list->tree_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
@@ -347,14 +333,14 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
                 list->event = event_new(base, -1, 0, cb, box);
                 if (list->event == NULL) {
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
             }
             int rc = event_add(list->event, tv);
             if (rc != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
 
@@ -364,24 +350,24 @@ struct evbuffer *harvest_tree(sqlite3 *db, trees_list *tree_list, struct event_b
         list = list->next;
     } while (list != NULL);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
 struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code) {
-    struct evbuffer * returnbuffer = evbuffer_new();
+    struct evbuffer *returnbuffer = evbuffer_new();
 
     CHECK_SAVE_OPEN(db, returnbuffer, code)
 
     if (get_number_of_tree_plots(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no tree plots\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     if (tree_list == NULL) {
         evbuffer_add_printf(returnbuffer, "no trees\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -415,7 +401,7 @@ struct evbuffer *tree_status(sqlite3 *db, trees_list *tree_list, int *code) {
         list = list->next;
     } while (list != NULL);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -445,7 +431,7 @@ void populate_trees(sqlite3 *db, trees_list **tree_list, struct event_base *base
     }
 }
 
-int setup_tree_maturity(sqlite3 *db, trees_list *list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg)) {
+static int setup_tree_maturity(sqlite3 *db, trees_list *list, struct event_base *base, void (*mature_cb)(evutil_socket_t fd, short events, void *arg)) {
     if (get_tree_maturity(db, list->tree_number) == 0) {
         time_t now = time(NULL);
         time_t time_from_db = get_tree_time(db, list->tree_number);
@@ -477,7 +463,7 @@ int setup_tree_maturity(sqlite3 *db, trees_list *list, struct event_base *base, 
     return 0;
 }
 
-void setup_tree_completion(sqlite3 *db, trees_list *list, struct event_base *base, int set_maturity, void (*ready_cb)(evutil_socket_t fd, short events, void *arg)) {
+static void setup_tree_completion(sqlite3 *db, trees_list *list, struct event_base *base, int set_maturity, void (*ready_cb)(evutil_socket_t fd, short events, void *arg)) {
     if (get_tree_completion(db, list->tree_number) == 0) {
         time_t now = time(NULL);
         time_t time_from_db = get_tree_time(db, list->tree_number);
@@ -565,4 +551,34 @@ void ping_trees(sqlite3 *db) {
             }
         }
     }
+}
+
+void tree_mature_set(struct box_for_list_and_db *box, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+    trees_list *list = box->list;
+
+    list->maturity = 1;
+    list->completion = 0;
+    set_tree_maturity(box->db, list->tree_number, 1);
+    clear_tree_time(box->db, list->tree_number);
+
+    //reset event
+    struct event *event = list->event;
+    struct event_base *base = event_get_base(event);
+    if (event != NULL) {
+        event_del(event);
+        event_free(event);
+    }
+
+    struct event *new_event = event_new(base, -1, 0, cb, box);
+    list->event = new_event;
+    const struct timeval *tv = &tree_time[list->type];
+    set_tree_time(box->db, list->tree_number, tree_time[list->type].tv_sec);
+    event_add(new_event, tv);
+}
+
+void tree_complete_set(struct box_for_list_and_db *box) {
+    trees_list *list = box->list;
+
+    list->completion = 1;
+    set_tree_completion(box->db, list->tree_number, 1);
 }

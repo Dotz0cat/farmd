@@ -17,14 +17,7 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "field.h"
-
-//enum, string, time, buy, sell, storage, item_type
-#define X(a, b, c, d, e, f, g) [a]={c, 0}
-static const struct timeval field_time[] = {
-    FIELD_CROP_TABLE
-};
-#undef X
+#include "field_private.h"
 
 struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code) {
     struct evbuffer *returnbuffer = evbuffer_new();
@@ -33,13 +26,13 @@ struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code) {
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     if (field_list == NULL) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -63,7 +56,7 @@ struct evbuffer *field_status(sqlite3 *db, fields_list *field_list, int *code) {
         list = list->next;
     } while (list != NULL);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -74,13 +67,13 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     if (field_list == NULL) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -94,43 +87,43 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
                 }
                 case (BARN_UPDATE): {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (BARN_ADD): {
                     evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (BARN_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to barn size\r\n", list->field_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_UPDATE): {
                     evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_ADD): {
                     evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (SILO_SIZE): {
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to silo size\r\n", list->field_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (STORAGE_NOT_HANDLED): {
                     evbuffer_add_printf(returnbuffer, "could not harvest field%d due to not being implemented\r\n", list->field_number);
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
@@ -150,7 +143,7 @@ struct evbuffer *harvest_field(sqlite3 *db, fields_list *field_list, int *code) 
         list = list->next;
     } while (list != NULL);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -161,7 +154,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
 
     if (get_number_of_fields(db) == 0) {
         evbuffer_add_printf(returnbuffer, "no fields\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -169,13 +162,13 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
         *field_list = make_fields_list(get_number_of_fields(db));
         if (*field_list == NULL) {
             evbuffer_add_printf(returnbuffer, "could not make fields\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
          for (int i = 0; i < get_number_of_fields(db); i++) {
             if (add_field(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -185,13 +178,13 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
     if ((current = get_number_of_fields_list(*field_list)) < get_number_of_fields(db)) {
         if (amend_fields_list(*field_list, get_number_of_fields(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "could not amend fields\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         for (int i = current; i < get_number_of_fields(db); i++) {
             if (add_field(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -202,7 +195,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
     type = field_crop_string_to_enum(crop);
     if (type == NONE_FIELD) {
         evbuffer_add_printf(returnbuffer, "%s is not a correct query\r\n", crop);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -210,7 +203,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
 
     if (get_skill_status(db, sanitized_string) == 0) {
         evbuffer_add_printf(returnbuffer, "currently do not own %s skill\r\n", sanitized_string);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -228,7 +221,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
                 list->event = event_new(base, -1, 0, cb, box);
                 if (list->event == NULL) {
                     evbuffer_add_printf(returnbuffer, "error making event\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
             }
@@ -236,36 +229,36 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
             int price = field_crop_buy_cost(type);
 
             //consume crops or cash
-            switch(consume_crops_or_cash_price_hint(db, sanitized_string, price)) {
+            switch(consume_crops_or_cash(db, sanitized_string, price)) {
                 case (NO_STORAGE_ERROR): {
                     break;
                 }
                 case (CONSUME_OR_BUY_BARN): {
                     evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_SILO): {
                     evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_NOT_ENOUGH_MONEY): {
                     evbuffer_add_printf(returnbuffer, "not enough money\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
                 case (CONSUME_OR_BUY_MONEY_ERROR): {
                     evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
                 case (COULD_NOT_CONSUME_OR_BUY): {
                     evbuffer_add_printf(returnbuffer, "could not plant or buy\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                     break;
                 }
@@ -282,7 +275,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
             int rc = event_add(list->event, tv);
             if (rc != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding event\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
             planted++;
@@ -291,7 +284,7 @@ struct evbuffer *plant_field(sqlite3 *db, fields_list **field_list, const char *
     } while (list != NULL);
 
     evbuffer_add_printf(returnbuffer, "planted: %d\r\n", planted);
-    *code = 200;
+    SET_CODE_OK(code)
 
     return returnbuffer;
 }
@@ -312,27 +305,27 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
             case (NO_MONEY_ERROR): {
                 if (update_meta(db, 1, "Fields") != 0) {
                     evbuffer_add_printf(returnbuffer, "error adding field\r\n");
-                    *code = 500;
+                    SET_CODE_INTERNAL_ERROR(code)
                     return returnbuffer;
                 }
                 break;
             }
             case (NOT_ENOUGH): {
                 evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
                 break;
             }
             case (ERROR_UPDATING): {
                 evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
     }
     else {
         evbuffer_add_printf(returnbuffer, "not high enough skill level to buy field\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -345,7 +338,7 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
         for (int i = 0; i < fields; i++) {
             if (add_field(db, list->field_number) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
@@ -353,20 +346,20 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
     else {
         if (amend_fields_list(*field_list, get_number_of_fields(db)) != 0) {
             evbuffer_add_printf(returnbuffer, "error amending field list\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         for (int i = current; i < get_number_of_fields(db); i++) {
             if (add_field(db, i) != 0) {
                 evbuffer_add_printf(returnbuffer, "error adding field to db\r\n");
-                *code = 500;
+                SET_CODE_INTERNAL_ERROR(code)
                 return returnbuffer;
             }
         }
     }
 
     evbuffer_add_printf(returnbuffer, "sucessfully bought field\r\n");
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -394,7 +387,7 @@ void populate_fields(sqlite3 *db, fields_list **field_list, struct event_base *b
     }
 }
 
-void setup_field_completion(sqlite3 *db, fields_list *list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+static void setup_field_completion(sqlite3 *db, fields_list *list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
     if (get_field_completion(db, list->field_number) == 0) {
         time_t now = time(NULL);
         time_t time_from_db = get_field_time(db, list->field_number);
@@ -465,4 +458,11 @@ void ping_fields(sqlite3 *db) {
             }
         }
     }
+}
+
+void field_complete_set(struct box_for_list_and_db *box) {
+    fields_list *list = box->list;
+
+    list->completion = 1;
+    set_field_completion(box->db, list->field_number, 1);
 }

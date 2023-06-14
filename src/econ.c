@@ -62,7 +62,7 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
 
     if (item_price == 0) {
         evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", item);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -74,13 +74,13 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         }
         case (NOT_ENOUGH): {
             evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (ERROR_UPDATING): {
             evbuffer_add_printf(returnbuffer, "error updating money\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -92,43 +92,43 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         }
         case (BARN_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (BARN_ADD): {
             evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (BARN_SIZE): {
             evbuffer_add_printf(returnbuffer, "error buying due to barn size\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_ADD): {
             evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_SIZE): {
             evbuffer_add_printf(returnbuffer, "error buying due to silo size\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (STORAGE_NOT_HANDLED): {
             evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -136,7 +136,7 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
 
     evbuffer_add_printf(returnbuffer, "sucessfully bought: %s\r\n", sanitized_string);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -183,7 +183,7 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
 
     if (item_price == 0) {
         evbuffer_add_printf(returnbuffer, "%s: is not valid\r\n", item);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -193,25 +193,25 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
         }
         case (BARN_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (BARN_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", sanitized_string);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", sanitized_string);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -219,7 +219,7 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
         case (SILO_ADD):
         case (STORAGE_NOT_HANDLED): {
             evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -233,7 +233,7 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
         case (NOT_ENOUGH):
         case (ERROR_UPDATING): {
             evbuffer_add_printf(returnbuffer, "error updating money\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -241,7 +241,7 @@ struct evbuffer *sell_item(sqlite3* db, const char *item, int *code) {
 
     evbuffer_add_printf(returnbuffer, "sucessfully sold: %s for %d\r\n", sanitized_string, item_price);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -280,7 +280,7 @@ struct evbuffer *get_item_buy_price(sqlite3 *db, const char *item_name, int *cod
             break;
     }
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }
 
@@ -319,6 +319,6 @@ struct evbuffer *get_item_sell_price(sqlite3 *db, const char *item_name, int *co
             break;
     }
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }

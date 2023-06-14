@@ -34,7 +34,7 @@ struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
 
     if ((sanitized_string = skill_sanitize(skill_name)) == NULL) {
         evbuffer_add_printf(returnbuffer, "failed to buy %s: not valid\r\n", skill_name);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -42,7 +42,7 @@ struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
         //limit is 1 per level
         if (get_skill_status(db, "Fields") >= get_level(db)) {
             evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
     }
@@ -50,13 +50,13 @@ struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
         //limit is 1 per level
         if (get_skill_status(db, "TreePlots") >= get_level(db)) {
             evbuffer_add_printf(returnbuffer, "failed to buy %s: limit is 1 per level\r\n", sanitized_string);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
     }
     else if (get_skill_status(db, sanitized_string) > 0) {
         evbuffer_add_printf(returnbuffer, "already own skill: %s\r\n", sanitized_string);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -64,37 +64,37 @@ struct evbuffer *buy_skill(sqlite3 *db, const char *skill_name, int *code) {
     const char *reason = skill_dep_check(db, sanitized_string);
     if (reason != NULL) {
         evbuffer_add_printf(returnbuffer, "dependency needed: %s\r\n", reason);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     int skill_points = get_skill_points(db);
     if (skill_points < 1) {
         evbuffer_add_printf(returnbuffer, "not enough skill points\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
     if (update_meta(db, -1, "SkillPoints") == 0) {
         if (update_skill_tree(db, sanitized_string) != 0) {
             evbuffer_add_printf(returnbuffer, "error adding skill\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
     }
     else {
         evbuffer_add_printf(returnbuffer, "error subtracting skill points\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
     //unlock the item in storage
     if (unlock_item_status(db, sanitized_string) != 0) {
         evbuffer_add_printf(returnbuffer, "error unlocking item\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
-    *code = 200;
+    SET_CODE_OK(code)
     evbuffer_add_printf(returnbuffer, "sucessfully bought skill: %s\r\n", sanitized_string);
 
     return returnbuffer;
@@ -138,7 +138,7 @@ struct evbuffer *skill_status(sqlite3 *db, const char *skill, int *code) {
 
     if (sanitized_string == NULL) {
         evbuffer_add_printf(returnbuffer, "Skill %s: is not valid\r\n", skill);
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -146,6 +146,6 @@ struct evbuffer *skill_status(sqlite3 *db, const char *skill, int *code) {
 
     evbuffer_add_printf(returnbuffer, "Skill status: %s %d\r\n", sanitized_string, skill_status);
 
-    *code = 200;
+    SET_CODE_OK(code)
     return returnbuffer;
 }

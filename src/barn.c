@@ -28,7 +28,7 @@ struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code) {
 
     evbuffer_add_printf(returnbuffer, "%s: %i\r\n", item, number_of_items);
 
-    *code = 200;
+    SET_CODE_OK(code)
 
     return returnbuffer;
 }
@@ -48,7 +48,7 @@ struct evbuffer *barn_allocation(sqlite3 *db, int *code) {
 
     evbuffer_add_printf(returnbuffer, "barn used: %.2f%%\r\n", allocation);
 
-    *code = 200;
+    SET_CODE_OK(code)
 
     return returnbuffer;
 }
@@ -62,7 +62,7 @@ struct evbuffer *barn_max(sqlite3 *db, int *code) {
 
     evbuffer_add_printf(returnbuffer, "Barn max: %d\r\n", max);
 
-    *code = 200;
+    SET_CODE_OK(code)
 
     return returnbuffer;
 }
@@ -76,7 +76,7 @@ struct evbuffer *barn_level(sqlite3 *db, int *code) {
 
     evbuffer_add_printf(returnbuffer, "Barn Level: %d\r\n", barn_level);
 
-    *code = 200;
+    SET_CODE_OK(code)
 
     return returnbuffer;
 }
@@ -95,7 +95,7 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
     //1 barn level for every 3 farm levels
     if (current_level > (current_farm_level / 3)) {
         evbuffer_add_printf(returnbuffer, "insuffecent farm level to upgrade\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -113,7 +113,7 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
 
     if (items_in_storage(db, upgrade_item) < amount) {
         evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -124,12 +124,12 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
         }
         case (ERROR_UPDATING): {
             evbuffer_add_printf(returnbuffer, "could not subtract money\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
         case (NOT_ENOUGH): {
             evbuffer_add_printf(returnbuffer, "insuffecent money to upgrade\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
         }
     }
@@ -140,25 +140,25 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
         }
         case (BARN_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (BARN_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", upgrade_item);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_UPDATE): {
             evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
         case (SILO_SIZE): {
             evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", upgrade_item);
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -166,7 +166,7 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
         case (SILO_ADD):
         case (STORAGE_NOT_HANDLED): {
             evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
-            *code = 500;
+            SET_CODE_INTERNAL_ERROR(code)
             return returnbuffer;
             break;
         }
@@ -175,7 +175,7 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
     //upgrade
     if (update_barn_meta_property(db, "Level", 1) != 0) {
         evbuffer_add_printf(returnbuffer, "error updating level\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
@@ -193,11 +193,11 @@ struct evbuffer *upgrade_barn(sqlite3 *db, int *code) {
 
     if (update_barn_meta_property(db, "MaxCapacity", capacity) != 0) {
         evbuffer_add_printf(returnbuffer, "error updating max capacity\r\n");
-        *code = 500;
+        SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
 
-    *code = 200;
+    SET_CODE_OK(code)
     evbuffer_add_printf(returnbuffer, "sucessfully upgrade barn\r\n");
     return returnbuffer;
 }

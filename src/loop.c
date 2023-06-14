@@ -19,27 +19,6 @@ This file is part of farmd.
 
 #include "loop_private.h"
 
-// //enum, string, time, buy, sell, storage, item_type
-// #define X(a, b, c, d, e, f, g) [a]={c, 0}
-// static const struct timeval field_time[] = {
-//     FIELD_CROP_TABLE
-// };
-// #undef X
-
-//enum, string, time, buy, sell, storage, item_type, maturity time
-#define X(a, b, c, d, e, f, g, h) [a]={c, 0}
-static const struct timeval tree_time[] = {
-    TREE_CROP_TABLE
-};
-#undef X
-
-// //enum, string, time, buy, sell, storage, item_type, maturity time
-// #define X(a, b, c, d, e, f, g, h) [a]={h, 0}
-// static const struct timeval tree_maturity_time[] = {
-//     TREE_CROP_TABLE
-// };
-// #undef X
-
 void loop_run(loop_context *context) {
     context->event_box = malloc(sizeof(events_box));
 
@@ -152,44 +131,44 @@ static void set_callbacks(struct evhttp *base, loop_context *context) {
     };
 
     struct cb_table callbacks[] = {
-        {"/barn/query",          barn_query_cb              },
-        {"/silo/query",          silo_query_cb              },
-        {"/createSave",          create_save_cb             },
-        {"/openSave",            open_save_cb               },
-        {"/closeSave",           close_save_cb              },
-        {"/pingSave",            ping_save_cb               },
-        {"/barn/allocation",     get_barn_allocation_cb     },
-        {"/silo/allocation",     get_silo_allocation_cb     },
-        {"/getMoney",            get_money_cb               },
-        {"/getLevel",            get_level_cb               },
-        {"/getXp",               get_xp_cb                  },
-        {"/getSkillPoints",      get_skill_points_cb        },
-        {"/getSkillStatus",      get_skill_status_cb        },
-        {"/version",             get_version_cb             },
-        {"/getBarnMax",          get_barn_max_cb            },
-        {"/getSiloMax",          get_silo_max_cb            },
-        {"/barn/max",            get_barn_max_cb            },
-        {"/silo/max",            get_silo_max_cb            },
-        {"/field/plant",         plant_cb                   },
-        {"/field/harvest",       field_harvest_cb           },
-        {"/field/status",        field_status_cb            },
-        {"/field/buy",           buy_field_cb               },
-        {"/buy/field",           buy_field_cb               },
-        {"/tree/buy",            buy_tree_plot_cb           },
-        {"/buy/tree",            buy_tree_plot_cb           },
-        {"/buy/skill",           buy_skill_cb               },
-        {"/skill/buy",           buy_skill_cb               },
-        {"/tree/plant",          plant_tree_cb              },
-        {"/tree/harvest",        tree_harvest_cb            },
-        {"/tree/status",         tree_status_cb             },
-        {"/buy/item",            buy_item_cb                },
-        {"/sell/item",           sell_item_cb               },
-        {"/buy/price",           item_buy_price_cb          },
-        {"/sell/price",          item_sell_price_cb         },
-        {"/barn/level",          get_barn_level_cb          },
-        {"/silo/level",          get_silo_level_cb          },
-        {"/barn/upgrade",        upgrade_barn_cb            },
-        {"/silo/upgrade",        upgrade_silo_cb            },
+        {"/barn/query",          barn_query_cb         },
+        {"/silo/query",          silo_query_cb         },
+        {"/createSave",          create_save_cb        },
+        {"/openSave",            open_save_cb          },
+        {"/closeSave",           close_save_cb         },
+        {"/pingSave",            ping_save_cb          },
+        {"/barn/allocation",     get_barn_allocation_cb},
+        {"/silo/allocation",     get_silo_allocation_cb},
+        {"/getMoney",            get_money_cb          },
+        {"/getLevel",            get_level_cb          },
+        {"/getXp",               get_xp_cb             },
+        {"/getSkillPoints",      get_skill_points_cb   },
+        {"/getSkillStatus",      get_skill_status_cb   },
+        {"/version",             get_version_cb        },
+        {"/getBarnMax",          get_barn_max_cb       },
+        {"/getSiloMax",          get_silo_max_cb       },
+        {"/barn/max",            get_barn_max_cb       },
+        {"/silo/max",            get_silo_max_cb       },
+        {"/field/plant",         plant_cb              },
+        {"/field/harvest",       field_harvest_cb      },
+        {"/field/status",        field_status_cb       },
+        {"/field/buy",           buy_field_cb          },
+        {"/buy/field",           buy_field_cb          },
+        {"/tree/buy",            buy_tree_plot_cb      },
+        {"/buy/tree",            buy_tree_plot_cb      },
+        {"/buy/skill",           buy_skill_cb          },
+        {"/skill/buy",           buy_skill_cb          },
+        {"/tree/plant",          plant_tree_cb         },
+        {"/tree/harvest",        tree_harvest_cb       },
+        {"/tree/status",         tree_status_cb        },
+        {"/buy/item",            buy_item_cb           },
+        {"/sell/item",           sell_item_cb          },
+        {"/buy/price",           item_buy_price_cb     },
+        {"/sell/price",          item_sell_price_cb    },
+        {"/barn/level",          get_barn_level_cb     },
+        {"/silo/level",          get_silo_level_cb     },
+        {"/barn/upgrade",        upgrade_barn_cb       },
+        {"/silo/upgrade",        upgrade_silo_cb       },
     };
 
     for (int i = 0; i < (int) (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
@@ -480,12 +459,10 @@ static void barn_query_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri_struct);
+    const char *query;
+    GET_QUERY(req, query)
     
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = barn_query(context->db, query, &code);
 
@@ -497,13 +474,11 @@ static void silo_query_cb(struct evhttp_request *req, void *arg) {
     loop_context *context = arg;
 
     TEST_METHOD(req, EVHTTP_REQ_GET)
-
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri_struct);
+    
+    const char *query;
+    GET_QUERY(req, query)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = silo_query(context->db, query, &code);
 
@@ -517,30 +492,20 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db != NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
+        SEND_REPLY_ERROR(req, "save open\r\n")
         return;
     }
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *file_name;
+    GET_QUERY(req, file_name)
 
-    const char *file_name = evhttp_uri_get_query(uri_struct);
     char *filename = NULL;
-
-    if (file_name == NULL) {
-        filename = get_post_args(req);
-        file_name = filename;
-    }
+    GET_POST_ARG_IF_NO_QUERY(file_name, filename, req)
 
     int rc = create_save(file_name, context);
     switch (rc) {
         case (1): {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to create new save at %s\r\n", file_name);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
+            SEND_REPLY_ERROR_WITH_ARG(req, "failed to create new save at %s\r\n", file_name)
             if (filename != NULL) {
                 free(filename);
             }
@@ -548,10 +513,7 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
             break;
         }
         case (2): {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to open new save at %s for inital settings\r\n", file_name);
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
+            SEND_REPLY_ERROR_WITH_ARG(req, "failed to open new save at %s for inital settings\r\n", file_name)
             if (filename != NULL) {
                 free(filename);
             }
@@ -559,10 +521,7 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
             break;
         }
         case (3): {
-            struct evbuffer *returnbuffer = evbuffer_new();
-            evbuffer_add_printf(returnbuffer, "failed to add inital settings\r\n");
-            evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-            evbuffer_free(returnbuffer);
+            SEND_REPLY_ERROR(req, "failed to add inital settings\r\n")
             if (filename != NULL) {
                 free(filename);
             }
@@ -571,10 +530,7 @@ static void create_save_cb(struct evhttp_request *req, void *arg) {
         }
     }
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "new save created at %s\r\n", file_name);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
+    SEND_REPLY_WITH_ARG(req, "new save created at %s\r\n", file_name)
 
     if (filename != NULL) {
         free(filename);
@@ -587,29 +543,19 @@ static void open_save_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db != NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "save already open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
+        SEND_REPLY_ERROR(req, "save already open\r\n")
         return;
     }
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *file_name;
+    GET_QUERY(req, file_name)
 
-    const char *file_name = evhttp_uri_get_query(uri_struct);
     char *filename = NULL;
-
-    if (file_name == NULL) {
-        filename = get_post_args(req);
-        file_name = filename;
-    }
+    GET_POST_ARG_IF_NO_QUERY(file_name, filename, req)
 
     int rc = open_save(file_name, context);
     if (rc != 0) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "failed to open save at %s\r\n", file_name);
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
+        SEND_REPLY_ERROR_WITH_ARG(req, "failed to open save at %s\r\n", file_name)
         if (filename != NULL) {
             free(filename);
         }
@@ -620,10 +566,7 @@ static void open_save_cb(struct evhttp_request *req, void *arg) {
         free(filename);
     }
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "save opened\r\n");
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
+    SEND_REPLY(req, "save opened\r\n")
 }
 
 static void close_save_cb(struct evhttp_request *req, void *arg) {
@@ -632,19 +575,13 @@ static void close_save_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
     if (context->db == NULL) {
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "no save open\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
+        SEND_REPLY_ERROR(req, "no save open\r\n")
         return;
     }
 
     close_save(context);
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "save closed\r\n");
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
+    SEND_REPLY(req, "save closed\r\n")
 }
 
 static void ping_save_cb(struct evhttp_request *req, void *arg) {
@@ -652,24 +589,18 @@ static void ping_save_cb(struct evhttp_request *req, void *arg) {
 
     //save open check here if implented
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *file_name;
+    GET_QUERY(req, file_name)
 
-    const char *file_name = evhttp_uri_get_query(uri_struct);
     char *filename = NULL;
 
-    if (file_name == NULL) {
-        filename = get_post_args(req);
-        file_name = filename;
-    }
+    GET_POST_ARG_IF_NO_QUERY(file_name, filename, req)
 
     if (ping_save(file_name) != 0) {
         if (filename != NULL) {
             free(filename);
         }
-        struct evbuffer *returnbuffer = evbuffer_new();
-        evbuffer_add_printf(returnbuffer, "error pinging save\r\n");
-        evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer);
-        evbuffer_free(returnbuffer);
+        SEND_REPLY_ERROR(req, "error pinging save\r\n")
         return;
     }
 
@@ -677,10 +608,7 @@ static void ping_save_cb(struct evhttp_request *req, void *arg) {
         free(filename);
     }
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "save pinged\r\n");
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
+    SEND_REPLY(req, "save pinged\r\n")
 }
 
 static int open_save(const char *file_name, loop_context *context) {
@@ -754,7 +682,6 @@ static void get_barn_allocation_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = barn_allocation(context->db, &code);
 
@@ -768,7 +695,6 @@ static void get_silo_allocation_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = silo_allocation(context->db, &code);
 
@@ -833,9 +759,8 @@ static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri_struct);
+    const char *query;
+    GET_QUERY(req, query)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -848,10 +773,7 @@ static void get_skill_status_cb(struct evhttp_request *req, void *arg) {
 static void get_version_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
-    struct evbuffer *returnbuffer = evbuffer_new();
-    evbuffer_add_printf(returnbuffer, "farmd version: %s\r\n", VERSION);
-    evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer);
-    evbuffer_free(returnbuffer);
+    SEND_REPLY_WITH_ARG(req, "farmd version: %s\r\n", VERSION)
 }
 
 static void get_barn_max_cb(struct evhttp_request *req, void *arg) {
@@ -911,15 +833,11 @@ static void plant_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *query;
+    GET_QUERY(req, query)
 
-    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
-
-    if (query == NULL) {
-        post_arg = get_post_args(req);
-        query = post_arg;
-    }
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -935,14 +853,7 @@ static void plant_cb(struct evhttp_request *req, void *arg) {
 
 static void field_ready_cb(evutil_socket_t fd, short events, void *user_data) {
     struct box_for_list_and_db *box = user_data;
-
-    fields_list *list = box->list;
-
-    list->completion = 1;
-
-    set_field_completion(box->db, list->field_number, 1);
-
-    return;
+    field_complete_set(box);
 }
 
 static void buy_field_cb(struct evhttp_request *req, void *arg) {
@@ -978,15 +889,11 @@ static void buy_skill_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *query;
+    GET_QUERY(req, query)
 
-    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
-
-    if (query == NULL) {
-        post_arg = get_post_args(req);
-        query = post_arg;
-    }
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1005,15 +912,11 @@ static void plant_tree_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *query;
+    GET_QUERY(req, query)
 
-    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
-
-    if (query == NULL) {
-        post_arg = get_post_args(req);
-        query = post_arg;
-    }
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1029,39 +932,12 @@ static void plant_tree_cb(struct evhttp_request *req, void *arg) {
 
 static void tree_mature_cb(evutil_socket_t fd, short events, void *user_data) {
     struct box_for_list_and_db *box = user_data;
-    trees_list *list = box->list;
-
-    list->maturity = 1;
-    list->completion = 0;
-    set_tree_maturity(box->db, list->tree_number, 1);
-    clear_tree_time(box->db, list->tree_number);
-
-    //reset event
-    struct event *event = list->event;
-    struct event_base *base = event_get_base(event);
-    if (event != NULL) {
-        event_del(event);
-        event_free(event);
-    }
-
-    struct event *new_event = event_new(base, -1, 0, tree_harvest_ready_cb, box);
-    list->event = new_event;
-    const struct timeval *tv = &tree_time[list->type];
-    set_tree_time(box->db, list->tree_number, tree_time[list->type].tv_sec);
-    event_add(new_event, tv);
-
-    return;
+    tree_mature_set(box, tree_harvest_ready_cb);
 }
 
 static void tree_harvest_ready_cb(evutil_socket_t fd, short events, void *user_data) {
     struct box_for_list_and_db *box = user_data;
-    trees_list *list = box->list;
-
-    list->completion = 1;
-
-    set_tree_completion(box->db, list->tree_number, 1);
-
-    return;
+    tree_complete_set(box);
 }
 
 static void tree_harvest_cb(struct evhttp_request *req, void *arg) {
@@ -1095,15 +971,11 @@ static void buy_item_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *query;
+    GET_QUERY(req, query)
 
-    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
-
-    if (query == NULL) {
-        post_arg = get_post_args(req);
-        query = post_arg;
-    }
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1122,15 +994,11 @@ static void sell_item_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
-    const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req);
+    const char *query;
+    GET_QUERY(req, query)
 
-    const char *query = evhttp_uri_get_query(uri_struct);
     char *post_arg = NULL;
-
-    if (query == NULL) {
-        post_arg = get_post_args(req);
-        query = post_arg;
-    }
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1149,9 +1017,8 @@ static void item_buy_price_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query;
+    GET_QUERY(req, query)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1166,9 +1033,8 @@ static void item_sell_price_cb(struct evhttp_request *req, void *arg) {
 
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
-    const struct evhttp_uri *uri = evhttp_request_get_evhttp_uri(req);
-
-    const char *query = evhttp_uri_get_query(uri);
+    const char *query;
+    GET_QUERY(req, query)
 
     int code = 0;
     struct evbuffer *returnbuffer;
@@ -1184,7 +1050,6 @@ static void get_barn_level_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = barn_level(context->db, &code);
 
@@ -1199,7 +1064,6 @@ static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_GET)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = silo_level(context->db, &code);
 
@@ -1214,7 +1078,6 @@ static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = upgrade_barn(context->db, &code);
 
@@ -1229,7 +1092,6 @@ static void upgrade_silo_cb(struct evhttp_request *req, void *arg) {
     TEST_METHOD(req, EVHTTP_REQ_POST)
 
     int code = 0;
-
     struct evbuffer *returnbuffer;
     returnbuffer = upgrade_silo(context->db, &code);
 

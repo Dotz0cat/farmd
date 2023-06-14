@@ -28,6 +28,47 @@ if (evhttp_request_get_command(a) != b) { \
     return; \
 }
 
+#define GET_QUERY(req, query) \
+const struct evhttp_uri *uri_struct = evhttp_request_get_evhttp_uri(req); \
+query = evhttp_uri_get_query(uri_struct);
+
+#define GET_POST_ARG_IF_NO_QUERY(query, post_arg, req) \
+if (query == NULL) { \
+    post_arg = get_post_args(req); \
+    if (post_arg == NULL) { \
+        struct evbuffer *buf = evbuffer_new(); \
+        evbuffer_add_printf(buf, "no query or post args\r\n"); \
+        evhttp_send_reply(req, HTTP_INTERNAL, "Client", buf); \
+        evbuffer_free(buf); \
+        return; \
+    } \
+    query = post_arg; \
+}
+
+#define SEND_REPLY(req, fmt) \
+struct evbuffer *returnbuffer = evbuffer_new(); \
+evbuffer_add_printf(returnbuffer, fmt); \
+evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer); \
+evbuffer_free(returnbuffer);
+
+#define SEND_REPLY_ERROR(req, fmt) \
+struct evbuffer *returnbuffer = evbuffer_new(); \
+evbuffer_add_printf(returnbuffer, fmt); \
+evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer); \
+evbuffer_free(returnbuffer);
+
+#define SEND_REPLY_WITH_ARG(req, fmt, arg) \
+struct evbuffer *returnbuffer = evbuffer_new(); \
+evbuffer_add_printf(returnbuffer, fmt, arg); \
+evhttp_send_reply(req, HTTP_OK, "Client", returnbuffer); \
+evbuffer_free(returnbuffer);
+
+#define SEND_REPLY_ERROR_WITH_ARG(req, fmt, arg) \
+struct evbuffer *returnbuffer = evbuffer_new(); \
+evbuffer_add_printf(returnbuffer, fmt, arg); \
+evhttp_send_reply(req, HTTP_INTERNAL, "Client", returnbuffer); \
+evbuffer_free(returnbuffer);
+
 static void set_callbacks(struct evhttp *base, loop_context *context);
 
 static void sig_int_quit_term_cb(evutil_socket_t sig, short events, void *user_data);
