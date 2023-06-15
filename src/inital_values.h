@@ -25,48 +25,6 @@ This file is part of farmd.
 #include <string.h>
 #include "save.h"
 
-//skill_name, dependency
-#define SKILL_DEP_TABLE \
-X("Farming", NULL), \
-X("Fields", "Farming"), \
-X("wheat", "Farming"), \
-X("corn", "Farming"), \
-X("potatos", "Farming"), \
-X("beets", "Farming"), \
-X("sugarcane", "Farming"), \
-X("turnips", "Farming"), \
-X("tomatos", "Farming"), \
-X("cucumbers", "Farming"), \
-X("okra", "Farming"), \
-X("TreePlots", "Farming"), \
-X("pears", "Farming"), \
-X("apples", "Farming"), \
-X("oranges", "Farming"), \
-X("peaches", "Farming"), \
-X("LiveStock", NULL), \
-X("Processing", NULL), \
-X("Dairy", "Processing"), \
-X("pasteurized", "Dairy"), \
-X("butter", "Dairy"), \
-X("cheese", "Dairy"), \
-X("FeedMill", "Processing"), \
-X("cowFeed", "FeedMill"), \
-X("chickenFeed", "FeedMill"), \
-X("Milling", "Processing"), \
-X("GrainMill", "Milling"), \
-X("wheatFlour", "GrainMill"), \
-X("cornMeal", "GrainMill"), \
-X("SugarMill", "Milling"), \
-X("beetSugar", "SugarMill"), \
-X("caneSugar", "SugarMill")
-
-struct dependency_map {
-    const char* skill;
-    const char* dependency;
-};
-
-int add_inital_save_values(sqlite3* db);
-const char* skill_dep_check(sqlite3* db, const char* skill);
-const char* skill_sanitize(const char* skill);
+int add_inital_save_values(sqlite3 *db);
 
 #endif /* INITAL_VALUES_H */

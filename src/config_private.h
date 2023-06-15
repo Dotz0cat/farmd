@@ -1,5 +1,5 @@
 /*
-Copyright 2022-2023 Dotz0cat
+Copyright 2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -17,23 +17,13 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef CONFIG_PRIVATE_H
+#define CONFIG_PRIVATE_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <syslog.h>
-#include <string.h>
-#include <pwd.h>
-
-#include "loop.h"
 #include "config.h"
 
-static void init_daemon(void);
-static pre_init_stuff *pre_init(char *config, char *save);
+static inline int file_exsits(const char *file);
+static inline int folder_exsits(const char *folder);
+static void make_default_config(const char *output_file);
 
-#endif /* MAIN_H */
+#endif /* CONFIG_PRIVATE_H */

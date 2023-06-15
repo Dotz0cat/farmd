@@ -1,5 +1,5 @@
 /*
-Copyright 2022-2023 Dotz0cat
+Copyright 2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -17,23 +17,19 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef ECON_H
+#define ECON_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <syslog.h>
-#include <string.h>
-#include <pwd.h>
+#include <event2/buffer.h>
 
-#include "loop.h"
-#include "config.h"
+#include "save.h"
+#include "list.h"
+#include "storage.h"
+#include "meta.h"
 
-static void init_daemon(void);
-static pre_init_stuff *pre_init(char *config, char *save);
+struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code);
+struct evbuffer *sell_item(sqlite3* db, const char *item, int *code);
+struct evbuffer *get_item_buy_price(sqlite3 *db, const char *item_name, int *code);
+struct evbuffer *get_item_sell_price(sqlite3 *db, const char *item_name, int *code);
 
-#endif /* MAIN_H */
+#endif /* ECON_H */

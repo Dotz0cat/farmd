@@ -1,5 +1,5 @@
 /*
-Copyright 2022-2023 Dotz0cat
+Copyright 2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -17,23 +17,14 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef BOX_STRUCT_H
+#define BOX_STRUCT_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <syslog.h>
-#include <string.h>
-#include <pwd.h>
+//bespoke struct just so I can pass 2 pointers with one
+struct box_for_list_and_db {
+    void *list;
 
-#include "loop.h"
-#include "config.h"
+    void *db;
+};
 
-static void init_daemon(void);
-static pre_init_stuff *pre_init(char *config, char *save);
-
-#endif /* MAIN_H */
+#endif /* BOX_STRUCT_H */

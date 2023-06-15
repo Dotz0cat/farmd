@@ -38,34 +38,30 @@ struct _config_settings {
 
     int http_port;
 
-    char* save_location;
+    char *save_location;
 
-    char* pub_key;
+    char *pub_key;
 
-    char* priv_key;
+    char *priv_key;
 };
 
 typedef struct _pre_init_stuff pre_init_stuff;
 
 struct _pre_init_stuff {
-    char* save;
+    char *save;
 
-    char* config;
+    char *config;
 
-    char* xdg_config_home;
+    char *xdg_config_home;
 
-    char* home;
+    char *home;
 
-    config_settings* settings;
+    config_settings *settings;
 };
 
-config_settings* config_parse(const char* config_location, const char* homedir, const char* xdg_config_home);
+config_settings *config_parse(const char *config_location, const char *homedir, const char *xdg_config_home);
 
-static inline int file_exsits(const char* file);
-static inline int folder_exsits(const char* folder);
-static void make_default_config(const char* output_file);
-
-void free_pre_init_stuff(pre_init_stuff* pre_init);
-void free_config_settings(config_settings* settings);
+void free_pre_init_stuff(pre_init_stuff *pre_init);
+void free_config_settings(config_settings *settings);
 
 #endif /* CONFIG_H */

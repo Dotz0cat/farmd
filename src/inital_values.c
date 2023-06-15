@@ -19,269 +19,87 @@ This file is part of farmd.
 
 #include "inital_values.h"
 
-#define X(a, b) {a, b}
-const struct dependency_map dep_map[] = {
-    SKILL_DEP_TABLE
-};
-#undef X
+int add_inital_save_values(sqlite3 *db) {
+    int rc = 0;
 
-int add_inital_save_values(sqlite3* db) {
+    struct table {
+        char *name;
+        int inital_value;
+    };
 
-    int rc;
-    rc = add_barn_meta_property(db, "Level", 1);
-    if (rc != 0) {
-        return -1;
+    struct table storage_meta[] = {
+        {"Level", 1},
+        {"MaxCapacity", 50},
+    };
+
+    for (int i = 0; i < (int) (sizeof(storage_meta) / sizeof(storage_meta[0])); i++) {
+        rc = add_barn_meta_property(db, storage_meta[i].name, storage_meta[i].inital_value);
+        if (rc != 0) {
+            return -1;
+        }
+        rc = add_silo_meta_property(db, storage_meta[i].name, storage_meta[i].inital_value);
+        if (rc != 0) {
+            return -1;
+        }
     }
 
-    rc = add_silo_meta_property(db, "Level", 1);
-    if (rc != 0) {
-        return -1;
+    struct table meta_values[] = {
+        {"Money", 1000},
+        {"Level", 1},
+        {"xp", 0},
+        {"SkillPoints", 10},
+        {"Fields", 0},
+        {"TreePlots", 0},
+    };
+
+    for (int i = 0; i < (int) (sizeof(meta_values) / sizeof(meta_values[0])); i++) {
+        rc = add_meta_property(db, meta_values[i].name, meta_values[i].inital_value);
+        if (rc != 0) {
+            return -1;
+        }
     }
 
-    rc = add_barn_meta_property(db, "MaxCapacity", 50);
-    if (rc != 0) {
-        return -1;
-    }
+    struct table skill_tree[] = {
+        {"Farming", 0},
+        {"Fields", 0},
+        {"wheat", 0},
+        {"corn", 0},
+        {"potatos", 0},
+        {"beets", 0},
+        {"sugarcane", 0},
+        {"turnips", 0},
+        {"tomatos", 0},
+        {"cucumbers", 0},
+        {"okra", 0},
+        {"TreePlots", 0},
+        {"pears", 0},
+        {"apples", 0},
+        {"oranges", 0},
+        {"peaches", 0},
+        {"LiveStock", 0},
+        {"Processing", 0},
+        {"Dairy", 0},
+        {"pasteurized", 0},
+        {"butter", 0},
+        {"cheese", 0},
+        {"FeedMill", 0},
+        {"cowFeed", 0},
+        {"chickenFeed", 0},
+        {"Milling", 0},
+        {"GrainMill", 0},
+        {"wheatFlour", 0},
+        {"cornMeal", 0},
+        {"SugarMill", 0},
+        {"beetSugar", 0},
+        {"caneSugar", 0},
+    };
 
-    rc = add_silo_meta_property(db, "MaxCapacity", 50);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "Money", 1000);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "Level", 1);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "xp", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "SkillPoints", 10);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "Fields", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_meta_property(db, "TreePlots", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //farming branch
-    rc = add_to_skill_tree(db, "Farming", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //number of fields that can be bought 3 for each level
-    rc = add_to_skill_tree(db, "Fields", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //crop types unlock once
-    rc = add_to_skill_tree(db, "wheat", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "corn", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "potatos", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "beets", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "sugarcane", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "turnips", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "tomatos", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "cucumbers", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "okra", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //plots for trees that can be bought 1x
-    rc = add_to_skill_tree(db, "TreePlots", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //tree types bought once
-    rc = add_to_skill_tree(db, "pears", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "apples", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "oranges", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "peaches", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //livestock branch
-    rc = add_to_skill_tree(db, "LiveStock", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //processing branch
-    rc = add_to_skill_tree(db, "Processing", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //only one for buildings
-    rc = add_to_skill_tree(db, "Dairy", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //dairy product types
-    rc = add_to_skill_tree(db, "pasteurized", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "butter", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "cheese", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //building
-    rc = add_to_skill_tree(db, "FeedMill", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //feed types
-    rc = add_to_skill_tree(db, "cowFeed", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "chickenFeed", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //building type (milling sub branch)
-    rc = add_to_skill_tree(db, "Milling", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //building
-    rc = add_to_skill_tree(db, "GrainMill", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //types
-    rc = add_to_skill_tree(db, "wheatFlour", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "cornMeal", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //building
-    rc = add_to_skill_tree(db, "SugarMill", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    //types
-    rc = add_to_skill_tree(db, "beetSugar", 0);
-    if (rc != 0) {
-        return -1;
-    }
-
-    rc = add_to_skill_tree(db, "caneSugar", 0);
-    if (rc != 0) {
-        return -1;
+    for (int i = 0; i < (int) (sizeof(skill_tree) / sizeof(skill_tree[0])); i++) {
+        rc = add_to_skill_tree(db, skill_tree[i].name, skill_tree[i].inital_value);
+        if (rc != 0) {
+            return -1;
+        }
     }
 
     return 0;
-}
-
-const char* skill_dep_check(sqlite3* db, const char* skill) {
-    for (int i = 0; i < (int) (sizeof(dep_map) / sizeof(dep_map[0])); i++) {
-        if (skill == dep_map[i].skill) {
-            if (dep_map[i].dependency != NULL) {
-                if (get_skill_status(db, dep_map[i].dependency) != 0) {
-                    return NULL;
-                }
-                else {
-                    return dep_map[i].dependency;
-                }
-            }
-            else {
-                return NULL;
-            }
-        }
-    }
-    return "Not Found";
-}
-
-const char* skill_sanitize(const char* skill) {
-    for (int i = 0; i < (int) (sizeof(dep_map) / sizeof(dep_map[0])); i++) {
-        if (strcasecmp(skill, dep_map[i].skill) == 0) {
-            return dep_map[i].skill;
-        }
-    }
-
-    return NULL;
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2022-2023 Dotz0cat
+Copyright 2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -17,23 +17,21 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H
-#define MAIN_H
+#ifndef BARN_H
+#define BARN_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <syslog.h>
-#include <string.h>
-#include <pwd.h>
+#include <event2/event.h>
+#include <event2/buffer.h>
 
-#include "loop.h"
-#include "config.h"
+#include "save.h"
+#include "list.h"
+#include "storage.h"
+#include "meta.h"
 
-static void init_daemon(void);
-static pre_init_stuff *pre_init(char *config, char *save);
+struct evbuffer *barn_query(sqlite3 *db, const char *item, int *code);
+struct evbuffer *barn_allocation(sqlite3 *db, int *code);
+struct evbuffer *barn_max(sqlite3 *db, int *code);
+struct evbuffer *barn_level(sqlite3 *db, int *code);
+struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
 
-#endif /* MAIN_H */
+#endif /* BARN_H */

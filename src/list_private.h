@@ -1,5 +1,5 @@
 /*
-Copyright 2022-2023 Dotz0cat
+Copyright 2023 Dotz0cat
 
 This file is part of farmd.
 
@@ -17,23 +17,15 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef MAIN_H
-#define MAIN_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <signal.h>
-#include <syslog.h>
-#include <string.h>
-#include <pwd.h>
+#ifndef LIST_PRIVATE_H
+#define LIST_PRIVATE_H
 
-#include "loop.h"
-#include "config.h"
+#include "list.h"
 
-static void init_daemon(void);
-static pre_init_stuff *pre_init(char *config, char *save);
+static fields_list *add_field_to_list(fields_list *prev, int field_number);
+static fields_list *wind_fields_to_tail(fields_list *list);
+static trees_list *add_tree_to_list(trees_list *prev, int tree_number);
+static trees_list *wind_trees_to_tail(trees_list *head);
 
-#endif /* MAIN_H */
+#endif /* LIST_PRIVATE_H */

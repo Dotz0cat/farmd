@@ -91,9 +91,9 @@ struct _fields_list {
 
     int completion;
 
-    void* event;
+    void *event;
 
-    void* next;
+    void *next;
 };
 
 typedef struct _trees_list trees_list;
@@ -107,32 +107,28 @@ struct _trees_list {
 
     int completion;
 
-    void* event;
+    void *event;
 
-    void* next;
+    void *next;
 };
 
 //TODO animals. (a tad bit more complicated)
 
-static fields_list* add_field_to_list(fields_list* prev, int field_number);
-fields_list* make_fields_list(const int number_of_fields);
-static fields_list* wind_fields_to_tail(fields_list* list);
-int amend_fields_list(fields_list* head, int new_number);
-int get_number_of_fields_list(fields_list* head);
-void set_field_event_pointer(fields_list* list, void* event);
-const char* field_crop_enum_to_string(const enum field_crop type);
-enum field_crop field_crop_string_to_enum(const char* type);
+fields_list *make_fields_list(const int number_of_fields);
+int amend_fields_list(fields_list *head, int new_number);
+int get_number_of_fields_list(fields_list *head);
+void set_field_event_pointer(fields_list *list, void *event);
+const char *field_crop_enum_to_string(const enum field_crop type);
+enum field_crop field_crop_string_to_enum(const char *type);
 
-static trees_list* add_tree_to_list(trees_list* prev, int tree_number);
-trees_list* make_trees_list(const int number_of_trees);
-static trees_list* wind_trees_to_tail(trees_list* head);
-int amend_trees_list(trees_list* head, const int new_number);
-int get_number_of_trees_list(trees_list* head);
-void set_trees_event_pointer(trees_list* node, void* event);
-const char* tree_crop_enum_to_string(const enum tree_crop type);
-enum tree_crop tree_crop_string_to_enum(const char* type);
+trees_list *make_trees_list(const int number_of_trees);
+int amend_trees_list(trees_list *head, const int new_number);
+int get_number_of_trees_list(trees_list *head);
+void set_trees_event_pointer(trees_list *node, void *event);
+const char *tree_crop_enum_to_string(const enum tree_crop type);
+enum tree_crop tree_crop_string_to_enum(const char *type);
 
-enum storage get_storage_type_string(const char* string);
+enum storage get_storage_type_string(const char *string);
 enum storage get_storage_type_field(const enum field_crop type);
 enum storage get_storage_type_tree(const enum tree_crop type);
 enum storage get_storage_type_special(const enum special_item type);
@@ -142,12 +138,15 @@ int field_crop_buy_cost(const enum field_crop item);
 int field_crop_sell_cost(const enum field_crop item);
 int special_item_buy_cost(const enum special_item item);
 int special_item_sell_cost(const enum special_item item);
-enum item_type get_product_type_string(const char* string);
+enum item_type get_product_type_string(const char *string);
 enum item_type get_product_type_field(const enum field_crop type);
 enum item_type get_product_type_tree(const enum tree_crop type);
 enum item_type get_product_type_special(const enum special_item type);
 
-enum special_item special_item_string_to_enum(const char* string);
-const char* special_item_enum_to_string(const enum special_item item);
+enum special_item special_item_string_to_enum(const char *string);
+const char *special_item_enum_to_string(const enum special_item item);
+
+int item_buy_price_string(const char *string);
+int item_sell_price_string(const char *string);
 
 #endif /* LIST_H */
