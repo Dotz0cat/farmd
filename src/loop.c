@@ -145,8 +145,6 @@ static void set_callbacks(struct evhttp *base, loop_context *context) {
         {"/getSkillPoints",      get_skill_points_cb   },
         {"/getSkillStatus",      get_skill_status_cb   },
         {"/version",             get_version_cb        },
-        {"/getBarnMax",          get_barn_max_cb       },
-        {"/getSiloMax",          get_silo_max_cb       },
         {"/barn/max",            get_barn_max_cb       },
         {"/silo/max",            get_silo_max_cb       },
         {"/field/plant",         plant_cb              },
