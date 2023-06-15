@@ -63,6 +63,22 @@ enum storage_errors add_to_storage(sqlite3 *db, const char *item, const int numb
                 }
             }
         }
+        else if (type == SPECIAL_PRODUCT) {
+            if (barn_query_db(db, item) != -1) {
+                //add item
+                if (update_barn(db, item, number_of_items) != 0) {
+                    return BARN_UPDATE;
+                }
+            }
+            else {
+                if (add_item_to_barn(db, item, SPECIAL) != 0) {
+                    return BARN_ADD;
+                }
+                if (update_barn(db, item, number_of_items) != 0) {
+                    return BARN_UPDATE;
+                }
+            }
+        }
         else {
             return BARN_SIZE;
         }
@@ -104,6 +120,22 @@ enum storage_errors add_to_storage(sqlite3 *db, const char *item, const int numb
                     if (update_silo(db, item, number_of_items) != 0) {
                         return SILO_UPDATE;
                     }
+                }
+            }
+        }
+        else if (type == SPECIAL_PRODUCT) {
+            if (silo_query_db(db, item) != -1) {
+                //add item
+                if (update_silo(db, item, number_of_items) != 0) {
+                    return SILO_UPDATE;
+                }
+            }
+            else {
+                if (add_item_to_barn(db, item, SPECIAL) != 0) {
+                    return SILO_ADD;
+                }
+                if (update_barn(db, item, number_of_items) != 0) {
+                    return SILO_UPDATE;
                 }
             }
         }
@@ -186,4 +218,28 @@ int unlock_item_status(sqlite3 *db, const char *item) {
     }
 
     return 0;
+}
+
+int items_available(sqlite3 *db, const char *name, const int amount) {
+    return (items_in_storage(db, name) >= amount);
+}
+
+int storage_available_for_item(sqlite3 *db, const char *name, const int amount) {
+    enum item_type type = get_product_type_string(name);
+
+    if (type == SPECIAL_PRODUCT) {
+        return 1;
+    }
+
+    enum storage storage_place = get_storage_type_string(name);
+
+    if (storage_place == BARN) {
+        return ((get_barn_max(db) - get_barn_allocation(db)) >= amount);
+    }
+    else if (storage_place == SILO) {
+        return ((get_silo_max(db) - get_silo_allocation(db)) >= amount);
+    }
+    else {
+        return 0;
+    }
 }

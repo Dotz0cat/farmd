@@ -111,7 +111,7 @@ struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
     //name lookup
     const char *upgrade_item = special_item_enum_to_string(SILO_UPGRADE_ITEM);
 
-    if (items_in_storage(db, upgrade_item) < amount) {
+    if (items_available(db, upgrade_item, amount) != 0) {
         evbuffer_add_printf(returnbuffer, "insuffecent items to upgrade\r\n");
         SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;

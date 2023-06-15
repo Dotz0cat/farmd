@@ -279,8 +279,6 @@ static void sighup_cb(evutil_socket_t sig, short events, void *user_data) {
     if (priv_key != NULL) {
         free(priv_key);
     }
-
-    return;
 }
 
 static void sigusr1_cb(evutil_socket_t sig, short events, void *user_data) {
@@ -867,7 +865,6 @@ static void buy_field_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }
 
 static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
@@ -881,7 +878,6 @@ static void buy_tree_plot_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }
 
 static void buy_skill_cb(struct evhttp_request *req, void *arg) {
@@ -1055,7 +1051,6 @@ static void get_barn_level_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }
 
 static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
@@ -1069,7 +1064,6 @@ static void get_silo_level_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }
 
 static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
@@ -1083,7 +1077,6 @@ static void upgrade_barn_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }
 
 static void upgrade_silo_cb(struct evhttp_request *req, void *arg) {
@@ -1097,5 +1090,4 @@ static void upgrade_silo_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
-    return;
 }

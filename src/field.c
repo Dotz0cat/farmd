@@ -297,34 +297,34 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
     //check skill tree first
     int current = get_number_of_fields(db);
     int skill_level = get_skill_status(db, "Fields");
-    if (current < (skill_level * 3)) {
-        //price is 2^current fields for next
-        //was pow(2, current)
-        int price = 2 << current;
-        switch (subtract_money(db, price)) {
-            case (NO_MONEY_ERROR): {
-                if (update_meta(db, 1, "Fields") != 0) {
-                    evbuffer_add_printf(returnbuffer, "error adding field\r\n");
-                    SET_CODE_INTERNAL_ERROR(code)
-                    return returnbuffer;
-                }
-                break;
-            }
-            case (NOT_ENOUGH): {
-                evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
-                SET_CODE_INTERNAL_ERROR(code)
-                return returnbuffer;
-                break;
-            }
-            case (ERROR_UPDATING): {
-                evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                SET_CODE_INTERNAL_ERROR(code)
-                return returnbuffer;
-            }
+    if (current >= (skill_level * 3)) {
+        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy field\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
+    //price is 2^current fields for next
+    //was pow(2, current)
+    int price = 2 << current;
+    switch (subtract_money(db, price)) {
+        case (NO_MONEY_ERROR): {
+            break;
+        }
+        case (NOT_ENOUGH): {
+            evbuffer_add_printf(returnbuffer, "not enough money to buy field\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (ERROR_UPDATING): {
+            evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
         }
     }
-    else {
-        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy field\r\n");
+
+    if (update_meta(db, 1, "Fields") != 0) {
+        evbuffer_add_printf(returnbuffer, "error adding field\r\n");
         SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
@@ -364,8 +364,6 @@ struct evbuffer *buy_field(sqlite3 *db, fields_list **field_list, int *code) {
 }
 
 void populate_fields(sqlite3 *db, fields_list **field_list, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
-
-    //populate fields
     int fields = get_number_of_fields(db);
 
     *field_list = make_fields_list(fields);

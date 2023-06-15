@@ -65,4 +65,6 @@ enum money_errors subtract_money(sqlite3 *db, const int amount);
 
 enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item, const int price);
 
+int money_check(sqlite3 *db, const int amount);
+
 #endif /* META_H */

@@ -25,34 +25,34 @@ struct evbuffer *buy_tree_plot(sqlite3 *db, trees_list **tree_list, int *code) {
 
     int current = get_number_of_tree_plots(db);
     int skill_level = get_skill_status(db, "TreePlots");
-    if (current < skill_level) {
-        //price is 2^current + 1 plots for next
-        //was pow(2, current + 1)
-        int price = 2 << (current + 1);
-        switch (subtract_money(db, price)) {
-            case (NO_MONEY_ERROR): {
-                if (update_meta(db, 1, "TreePlots") != 0) {
-                    evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
-                    SET_CODE_INTERNAL_ERROR(code)
-                    return returnbuffer;
-                }
-                break;
-            }
-            case (NOT_ENOUGH): {
-                evbuffer_add_printf(returnbuffer, "not enough money to buy tree plot\r\n");
-                SET_CODE_INTERNAL_ERROR(code)
-                return returnbuffer;
-                break;
-            }
-            case (ERROR_UPDATING): {
-                evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
-                SET_CODE_INTERNAL_ERROR(code)
-                return returnbuffer;
-            }
+    if (current >= skill_level) {
+        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
+    //price is 2^current + 1 plots for next
+    //was pow(2, current + 1)
+    int price = 2 << (current + 1);
+    switch (subtract_money(db, price)) {
+        case (NO_MONEY_ERROR): {
+            break;
+        }
+        case (NOT_ENOUGH): {
+            evbuffer_add_printf(returnbuffer, "not enough money to buy tree plot\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (ERROR_UPDATING): {
+            evbuffer_add_printf(returnbuffer, "error subtracting money\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
         }
     }
-    else {
-        evbuffer_add_printf(returnbuffer, "not high enough skill level to buy this\r\n");
+
+    if (update_meta(db, 1, "TreePlots") != 0) {
+        evbuffer_add_printf(returnbuffer, "error adding tree plot\r\n");
         SET_CODE_INTERNAL_ERROR(code)
         return returnbuffer;
     }
@@ -410,8 +410,7 @@ void populate_trees(sqlite3 *db, trees_list **tree_list, struct event_base *base
 
     *tree_list = make_trees_list(trees);
 
-    //populate trees
-    if (trees >= 0) {
+    if (trees <= 0) {
         return;
     }
     trees_list *list = *tree_list;
@@ -517,7 +516,7 @@ void free_trees(trees_list **list) {
 
 void ping_trees(sqlite3 *db) {
     int trees = get_number_of_tree_plots(db);
-    if (trees > 0) {
+    if (trees <= 0) {
         return;
     }
     for (int i = 0; i < trees; i++) {

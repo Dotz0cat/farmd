@@ -66,6 +66,17 @@ struct evbuffer *buy_item(sqlite3 *db, const char *item, int *code) {
         return returnbuffer;
     }
 
+    if (money_check(db, item_price)) {
+        evbuffer_add_printf(returnbuffer, "not enough money to buy item\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+    else if (storage_available_for_item(db, sanitized_string, 1)) {
+        evbuffer_add_printf(returnbuffer, "not enough space to buy item\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
     //db work
     //update money
     switch (subtract_money(db, item_price)) {

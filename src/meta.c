@@ -99,7 +99,7 @@ enum money_errors add_money(sqlite3 *db, const int amount) {
 }
 
 enum money_errors subtract_money(sqlite3 *db, const int amount) {
-    if (get_money(db) > amount) {
+    if (money_check(db, amount)) {
         if (update_meta(db, (-1 * amount), "Money") != 0) {
             return ERROR_UPDATING;
         }
@@ -151,4 +151,8 @@ enum consume_or_buy_errors consume_crops_or_cash(sqlite3 *db, const char *item, 
         }
     }
     return COULD_NOT_CONSUME_OR_BUY;
+}
+
+int money_check(sqlite3 *db, const int amount) {
+    return (get_money(db) >= amount);
 }
