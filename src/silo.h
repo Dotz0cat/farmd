@@ -33,5 +33,7 @@ struct evbuffer *silo_allocation(sqlite3 *db, int *code);
 struct evbuffer *silo_max(sqlite3 *db, int *code);
 struct evbuffer *silo_level(sqlite3 *db, int *code);
 struct evbuffer *upgrade_silo(sqlite3 *db, int *code);
+struct evbuffer *silo_upgrade_cost(sqlite3 *db, int *code);
+struct evbuffer *silo_next_level_stats(sqlite3 *db, int *code);
 
 #endif /* SILO_H */

@@ -143,4 +143,9 @@ static void get_silo_level_cb(struct evhttp_request *req, void *arg);
 static void upgrade_barn_cb(struct evhttp_request *req, void *arg);
 static void upgrade_silo_cb(struct evhttp_request *req, void *arg);
 
+static void get_barn_upgrade_cost_cb(struct evhttp_request *req, void *arg);
+static void get_silo_upgrade_cost_cb(struct evhttp_request *req, void *arg);
+static void get_barn_next_level_cb(struct evhttp_request *req, void *arg);
+static void get_silo_next_level_cb(struct evhttp_request *req, void *arg);
+
 #endif /* LOOP_PRIVATE_H */

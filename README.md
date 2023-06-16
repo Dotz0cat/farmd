@@ -274,6 +274,30 @@ And over https over localhost port 8443 (when enabled and given correct keys)
 	- example
 		- `$ curl http://localhost:8080/sell/price?wheat -X GET`
 
+- /barn/upgrade/cost
+	- Shows the cost of upgrading the barn
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/barn/upgrade/cost -X GET`
+
+- /silo/upgrade/cost
+	- Shows the cost of upgrading the silo
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/silo/upgrade/cost -X GET`
+
+- /barn/upgrade/stats
+	- Shows the stats of the next level of the barn
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/barn/upgrade/stats -X GET`
+
+- /silo/upgrade/stats
+	- Shows the stats of the next level of the silo
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/silo/upgrade/stats -X GET`
+
 ## Skill Tree
 
 The game features a skill tree
@@ -311,6 +335,21 @@ The game features a skill tree
 		- SugarMill
 			- beetSugar
 			- caneSugar
+
+## New building template
+
+c does not have interfaces or abstract classes.
+So it will be defined here.
+Pick and choose. A new building does not have to implement all.
+
+Building
+* upgrade
+	* get level
+	* costs
+	* stats
+* collect
+* start processing
+* status
 
 ## Contributing
 

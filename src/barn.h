@@ -33,5 +33,7 @@ struct evbuffer *barn_allocation(sqlite3 *db, int *code);
 struct evbuffer *barn_max(sqlite3 *db, int *code);
 struct evbuffer *barn_level(sqlite3 *db, int *code);
 struct evbuffer *upgrade_barn(sqlite3 *db, int *code);
+struct evbuffer *barn_upgrade_cost(sqlite3 *db, int *code);
+struct evbuffer *barn_next_level_stats(sqlite3 *db, int *code);
 
 #endif /* BARN_H */

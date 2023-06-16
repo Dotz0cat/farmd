@@ -42,7 +42,7 @@ struct evbuffer *silo_allocation(sqlite3 *db, int *code) {
 
     int used = get_silo_allocation(db);
 
-    float allocation = (float) used / (float) max;
+    double allocation = (double) used / (double) max;
 
     allocation = allocation * 100;
 
@@ -199,5 +199,55 @@ struct evbuffer *upgrade_silo(sqlite3 *db, int *code) {
 
     SET_CODE_OK(code)
     evbuffer_add_printf(returnbuffer, "sucessfully upgrade silo\r\n");
+    return returnbuffer;
+}
+
+struct evbuffer *silo_upgrade_cost(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+
+    //get current
+    int current_level = get_silo_meta_property(db, "Level");
+
+    int amount;
+    int money_amount;
+    //Yes this does use integer division. I want it to be lazy
+    amount = 3 + (current_level / 2);
+    money_amount = (500 * current_level);
+
+    const char *item_name = special_item_enum_to_string(SILO_UPGRADE_ITEM);
+
+    evbuffer_add_printf(returnbuffer, "Costs:\r\n%s: %d\r\nMoney: %d\r\n", item_name, amount, money_amount);
+    SET_CODE_OK(code)
+    return returnbuffer;
+}
+
+struct evbuffer *silo_next_level_stats(sqlite3 *db, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+
+    //get current
+    int current_level = get_silo_meta_property(db, "Level");
+
+    int current_size = get_silo_max(db);
+
+    int capacity = 0;
+
+    if (current_level == 1) {
+        capacity = 50;
+    }
+    else if (current_level > 1 && current_level < 10) {
+        capacity = 100 << (current_level / 9);
+    }
+    else {
+        capacity = 100 << (current_level / 10);
+    }
+
+    current_level++;
+
+    evbuffer_add_printf(returnbuffer, "Stats:\r\nLevel: %d\r\nCapacity: %d\r\n", current_level, (current_size + capacity));
+    SET_CODE_OK(code)
     return returnbuffer;
 }
