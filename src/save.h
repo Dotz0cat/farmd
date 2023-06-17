@@ -34,6 +34,11 @@ enum item_status {
     SPECIAL
 };
 
+struct queue_slot {
+    int queue;
+    int slot;
+};
+
 int create_save_db(const char *filename);
 int open_save_db(const char *filename, sqlite3 **db);
 void close_save_db(sqlite3 *db);
@@ -108,6 +113,21 @@ int clear_field_time(sqlite3 *db, const int index);
 int set_field_completion(sqlite3 *db, const int index, const int completion);
 int get_field_completion(sqlite3 *db, const int index);
 
+int add_slot_to_grain_mill(sqlite3 *db, const int queue_index, const int slot_index);
+int set_type_grain_mill(sqlite3 *db, const int queue_index, const int slot_index, const char *type);
+char *get_grain_mill_type(sqlite3 *db, const int queue_index, const int slot_index);
+int set_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index, const time_t time);
+time_t get_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index);
+int set_grain_mill_start_time(sqlite3 *db, const int queue_index, const int slot_index, const time_t time);
+time_t get_grain_mill_start_time(sqlite3 *db, const int queue_index, const int slot_index);
+int clear_grain_mill_time(sqlite3 *db, const int queue_index, const int slot_index);
+int set_grain_mill_completion(sqlite3 *db, const int queue_index, const int slot_index, const int completion);
+int get_grain_mill_completion(sqlite3 *db, const int queue_index, const int slot_index);
+
+int add_grain_mill_meta_property(sqlite3 *db, const char *property, const int value);
+int get_grain_mill_meta_property(sqlite3 *db, const char *property);
+int update_grain_mill_meta_property(sqlite3 *db, const char *property, const int value);
+
 #endif /* SAVE_H */
 
 /*
@@ -134,4 +154,12 @@ CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
 CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Mature INT CHECK(Mature = 0 OR Mature = 1), Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
 
 CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);
+
+CREATE TABLE GrainMill (QueueIndex INT, SlotIndex INT, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), StartTime INT, EndTime INT CHECK(EndTime > StartTime));
+
+#thanks to habbie on ##sqlite on libera for this
+CREATE UNIQUE INDEX GrainMill_QS ON GrainMill(QueueIndex, SlotIndex);
+
+CREATE TABLE GrainMillMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));
+
 */

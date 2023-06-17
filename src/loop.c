@@ -621,6 +621,8 @@ static int open_save(const char *file_name, loop_context *context) {
 
     populate_trees(context->db, &context->tree_list, context->event_box->base, tree_mature_cb, tree_harvest_ready_cb);
 
+    populate_grain_mill(context->db, &context->grain_mill_queue, context->event_box->base, NULL);
+
     return 0;
 }
 
@@ -656,6 +658,8 @@ static int close_save(loop_context *context) {
     //free trees
     free_trees(&context->tree_list);
 
+    free_queue_list(&context->grain_mill_queue);
+
     return 0;
 }
 
@@ -670,6 +674,8 @@ static int ping_save(const char *filename) {
     ping_fields(db);
 
     ping_trees(db);
+
+    ping_grain_mill(db);
 
     close_save_db(db);
 

@@ -17,19 +17,21 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifndef GRAIN_MILL_H
+#define GRAIN_MILL_H
 
-#ifndef LIST_PRIVATE_H
-#define LIST_PRIVATE_H
+#include <event2/event.h>
+#include <event2/buffer.h>
 
+#include "save.h"
 #include "list.h"
+#include "storage.h"
+#include "meta.h"
+#include "box_struct.h"
 
-static fields_list *add_field_to_list(fields_list *prev, int field_number);
-static fields_list *wind_fields_to_tail(fields_list *list);
-static trees_list *add_tree_to_list(trees_list *prev, int tree_number);
-static trees_list *wind_trees_to_tail(trees_list *head);
-static slot_list *add_slot_to_list(slot_list *prev, int slot_number);
-static slot_list *wind_slots_to_tail(slot_list *head);
-static queue_list *add_queue_to_list(queue_list *prev, int queue_number);
-static queue_list *wind_queue_to_tail(queue_list *head);
+void populate_grain_mill(sqlite3 *db, queue_list **queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
+void ping_grain_mill(sqlite3 *db);
+void free_queue_list(queue_list **head);
+void free_slot_list(slot_list **head);
 
-#endif /* LIST_PRIVATE_H */
+#endif /* GRAIN_MILL_H */

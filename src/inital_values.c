@@ -43,6 +43,19 @@ int add_inital_save_values(sqlite3 *db) {
         }
     }
 
+    struct table processing_building_meta[] = {
+        {"Level", 0},
+        {"Queues", 0},
+        {"SlotsInQueue0", 0},
+    };
+
+    for (int i = 0; i < (int) (sizeof(processing_building_meta) / sizeof(processing_building_meta[0])); i++) {
+        rc = add_grain_mill_meta_property(db, processing_building_meta[i].name, processing_building_meta[i].inital_value);
+        if (rc != 0) {
+            return -1;
+        }
+    }
+
     struct table meta_values[] = {
         {"Money", 1000},
         {"Level", 1},
@@ -50,6 +63,7 @@ int add_inital_save_values(sqlite3 *db) {
         {"SkillPoints", 10},
         {"Fields", 0},
         {"TreePlots", 0},
+        {"GrainMill", 0},
     };
 
     for (int i = 0; i < (int) (sizeof(meta_values) / sizeof(meta_values[0])); i++) {

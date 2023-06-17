@@ -51,6 +51,7 @@ This file is part of farmd.
 #include "econ.h"
 #include "skill.h"
 #include "meta.h"
+#include "grain_mill.h"
 
 typedef struct _events_box events_box;
 
@@ -80,6 +81,8 @@ struct _loop_context {
     fields_list *field_list;
 
     trees_list *tree_list;
+
+    queue_list *grain_mill_queue;
 
     SSL_CTX *ssl_ctx;
 };

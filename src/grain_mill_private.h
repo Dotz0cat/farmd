@@ -17,19 +17,19 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#ifndef GRAIN_MILL_PRIVATE_H
+#define GRAIN_MILL_PRIVATE_H
 
-#ifndef LIST_PRIVATE_H
-#define LIST_PRIVATE_H
+#include "grain_mill.h"
 
-#include "list.h"
+//enum, string, time, buy, sell, storage, item_type
+#define X(a, b, c, d, e, f, g) [a]={c, 0}
+static const struct timeval grain_mill_times[] = {
+    PROCESSED_ITEM_TABLE
+};
+#undef X
 
-static fields_list *add_field_to_list(fields_list *prev, int field_number);
-static fields_list *wind_fields_to_tail(fields_list *list);
-static trees_list *add_tree_to_list(trees_list *prev, int tree_number);
-static trees_list *wind_trees_to_tail(trees_list *head);
-static slot_list *add_slot_to_list(slot_list *prev, int slot_number);
-static slot_list *wind_slots_to_tail(slot_list *head);
-static queue_list *add_queue_to_list(queue_list *prev, int queue_number);
-static queue_list *wind_queue_to_tail(queue_list *head);
+static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, int queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
+static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, int queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
 
-#endif /* LIST_PRIVATE_H */
+#endif /* GRAIN_MILL_PRIVATE_H */

@@ -42,7 +42,10 @@ int create_save_db(const char *filename) {
                 "CREATE TABLE EconContracts (Buyer TEXT, Price INT CHECK(Price > 0));"
                 "CREATE TABLE Meta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));"
                 "CREATE TABLE Trees (TreeIndex INT UNIQUE, Type TEXT, Mature INT CHECK(Mature = 0 OR Mature = 1), Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);"
-                "CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);";
+                "CREATE TABLE Fields (FieldIndex INT UNIQUE, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), Time INT);"
+                "CREATE TABLE GrainMill (QueueIndex INT, SlotIndex INT, Type TEXT, Completion INT CHECK(Completion = 0 OR Completion = 1), StartTime INT, EndTime INT CHECK(EndTime > StartTime));"
+                "CREATE UNIQUE INDEX GrainMill_QS ON GrainMill(QueueIndex, SlotIndex);"
+                "CREATE TABLE GrainMillMeta (Property TEXT UNIQUE, Value INT CHECK(Value >= 0));";
 
     rc = sqlite3_exec(db, sql, NULL, NULL, NULL);
 
@@ -1851,4 +1854,450 @@ int get_field_completion(sqlite3 *db, const int index) {
     sqlite3_finalize(stmt);
 
     return complete;
+}
+
+int add_slot_to_grain_mill(sqlite3 *db, const int queue_index, const int slot_index) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "INSERT OR IGNORE INTO GrainMill (QueueIndex, SlotIndex, Type, Completion) VALUES (?, ?, ?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+        sqlite3_bind_text(stmt, 3, "none", -1, NULL);
+        sqlite3_bind_int(stmt, 4, 0);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int set_type_grain_mill(sqlite3 *db, const int queue_index, const int slot_index, const char *type) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMill SET Type = ? WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, type, -1, NULL);
+        sqlite3_bind_int(stmt, 2, slot_index);
+        sqlite3_bind_int(stmt, 3, queue_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+char *get_grain_mill_type(sqlite3 *db, const int queue_index, const int slot_index) {
+    sqlite3_stmt *stmt;
+
+    const unsigned char *slot_type = NULL;
+    char *type = NULL;
+
+    char *sql = "SELECT Type FROM GrainMill WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return NULL;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return NULL;
+        }
+    }
+
+    slot_type = sqlite3_column_text(stmt, 0);
+
+    type = strdup( (const char*) slot_type);
+
+    sqlite3_finalize(stmt);
+
+    return type;
+}
+
+int set_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index, const time_t time) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMill SET EndTime = ? WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, time);
+        sqlite3_bind_int(stmt, 2, queue_index);
+        sqlite3_bind_int(stmt, 3, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+time_t get_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index) {
+    time_t time;
+
+    sqlite3_stmt *stmt;
+
+    char *sql = "SELECT EndTime FROM GrainMill WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    time = sqlite3_column_int64(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return time;
+}
+
+int set_grain_mill_start_time(sqlite3 *db, const int queue_index, const int slot_index, const time_t time) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMill SET StartTime = ? WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, time);
+        sqlite3_bind_int(stmt, 2, queue_index);
+        sqlite3_bind_int(stmt, 3, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+time_t get_grain_mill_start_time(sqlite3 *db, const int queue_index, const int slot_index) {
+    time_t time;
+
+    sqlite3_stmt *stmt;
+
+    char *sql = "SELECT StartTime FROM GrainMill WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    time = sqlite3_column_int64(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return time;
+}
+
+int clear_grain_mill_time(sqlite3 *db, const int queue_index, const int slot_index) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMill SET StartTime = NULL, EndTime = NULL WHERE QueueIndex == 0 AND SlotIndex == 1;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int set_grain_mill_completion(sqlite3 *db, const int queue_index, const int slot_index, const int completion) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMill SET Completion = ? WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, completion);
+        sqlite3_bind_int(stmt, 2, queue_index);
+        sqlite3_bind_int(stmt, 3, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int get_grain_mill_completion(sqlite3 *db, const int queue_index, const int slot_index) {
+    int complete;
+
+    sqlite3_stmt *stmt;
+
+    char *sql = "SELECT Completion FROM GrainMill WHERE QueueIndex == ? AND SlotIndex == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, queue_index);
+        sqlite3_bind_int(stmt, 2, slot_index);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    complete = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return complete;
+}
+
+int add_grain_mill_meta_property(sqlite3 *db, const char *property, const int value) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "INSERT OR IGNORE INTO GrainMillMeta (Property, Value) VALUES (?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+        sqlite3_bind_int(stmt, 2, value);
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
+}
+
+int get_grain_mill_meta_property(sqlite3 *db, const char *property) {
+    int value;
+
+    sqlite3_stmt *stmt;
+
+    char *sql = "SELECT Value FROM GrainMillMeta WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, property, -1, NULL);
+       
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    value = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return value;
+}
+
+int update_grain_mill_meta_property(sqlite3 *db, const char *property, const int value) {
+    sqlite3_stmt *stmt;
+
+    char *sql = "UPDATE GrainMillMeta SET Value = Value + ? WHERE Property == ?;";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, value);
+        sqlite3_bind_text(stmt, 2, property, -1, NULL);
+       
+    }
+    else {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK && rc != SQLITE_DONE) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        
+        return -1;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return 0;
 }
