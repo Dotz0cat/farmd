@@ -72,6 +72,7 @@ int get_xp(sqlite3 *db);
 int get_number_of_fields(sqlite3 *db);
 int get_number_of_tree_plots(sqlite3 *db);
 int get_skill_points(sqlite3 *db);
+int get_grain_mill_bought_status(sqlite3 *db);
 
 int update_meta(sqlite3 *db, const int added, const char *property);
 

@@ -274,6 +274,32 @@ And over https over localhost port 8443 (when enabled and given correct keys)
 	- example
 		- `$ curl http://localhost:8080/sell/price?wheat -X GET`
 
+- /barn/level
+	- Shows the current level of the barn
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/barn/level -X GET`
+
+- /silo/level
+	- Shows the current level of the silo
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/silo/level -X GET`
+
+- /barn/upgrade
+	- Upgrades the barn
+	- Uses http POST
+	- Every 3 farm levels
+	- example
+		- `$ curl http://localhost:8080/barn/upgrade -X POST`
+
+- /silo/upgrade
+	- Upgrades the silo
+	- Uses http POST
+	- Every 3 farm levels
+	- example
+		- `$ curl http://localhost:8080/silo/upgrade -X POST`
+
 - /barn/upgrade/cost
 	- Shows the cost of upgrading the barn
 	- Uses http GET
@@ -297,6 +323,38 @@ And over https over localhost port 8443 (when enabled and given correct keys)
 	- Uses http GET
 	- example
 		- `$ curl http://localhost:8080/silo/upgrade/stats -X GET`
+
+- /grainMill/buy
+	- Buys the grain mill
+	- Uses http POST
+	- Farm level 5 and above
+	- example
+		- `$ curl http://localhost:8080/grainMill/buy -X POST`
+
+- /grainMill/buy/cost
+	- Shows the cost of buying the grain mill
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/grainMill/buy/cost -X GET`
+
+- /grainMill/upgrade
+	- Upgrades the grain mill
+	- Uses http POST
+	- Every 5 farm levels after level 5
+	- example
+		- `$ curl http://localhost:8080/grainMill/upgrade -X POST`
+
+- /grainMill/upgrade/cost
+	- Shows the cost of upgrading the grain mill
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/grainMill/upgrade/cost -X GET`
+
+- /grainMill/upgrade/stats
+	- Shows the stats of the next level of the grain mill
+	- Uses http GET
+	- example
+		- `$ curl http://localhost:8080/grainMill/upgrade/stats -X GET`
 
 ## Skill Tree
 

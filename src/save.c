@@ -819,6 +819,39 @@ int get_skill_points(sqlite3 *db) {
     return points;
 }
 
+int get_grain_mill_bought_status(sqlite3 *db) {
+    int points;
+
+    sqlite3_stmt *stmt;
+
+    char *sql = "SELECT Value FROM Meta WHERE Property == 'GrainMill';";
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+
+    if (rc != SQLITE_OK) {
+        syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+
+        return -1;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_OK) {
+        if (rc != SQLITE_ROW) {
+            syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;
+        }
+    }
+
+    points = sqlite3_column_int(stmt, 0);
+
+    sqlite3_finalize(stmt);
+
+    return points;
+}
+
 int update_meta(sqlite3 *db, const int added, const char *property) {
     sqlite3_stmt *stmt;
 

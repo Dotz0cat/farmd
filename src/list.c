@@ -557,6 +557,9 @@ static slot_list *add_slot_to_list(slot_list *prev, int slot_number) {
 
     new->next = NULL;
 
+    new->mask = 0ull;
+    new->mask |= 1 << slot_number;
+
     new->event = NULL;
 
     new->slot_number = slot_number;
@@ -569,7 +572,7 @@ static slot_list *add_slot_to_list(slot_list *prev, int slot_number) {
 }
 
 slot_list *make_slot_list(const int number_of_slots) {
-    if (number_of_slots == 0) {
+    if (number_of_slots == 0 || number_of_slots > 64) {
         return NULL;
     }
 
@@ -584,13 +587,16 @@ slot_list *make_slot_list(const int number_of_slots) {
         add_head = add_slot_to_list(add_head, i);
     }
 
+    //make circular
+    add_head->next = list;
+
     return list;
 }
 
 static slot_list *wind_slots_to_tail(slot_list *head) {
     slot_list *list = head;
 
-    while (list->next != NULL) {
+    while (list->next != NULL && list->next != head) {
         list = list->next;
     }
 
@@ -600,7 +606,7 @@ static slot_list *wind_slots_to_tail(slot_list *head) {
 int amend_slot_list(slot_list *head, const int new_number) {
     int old_number = get_number_of_slot_list(head);
 
-    if (new_number <= old_number || head == NULL) {
+    if (new_number <= old_number || head == NULL || new_number > 64) {
         return -1;
     }
 
@@ -616,6 +622,9 @@ int amend_slot_list(slot_list *head, const int new_number) {
         list = add_slot_to_list(list, i);
     }
 
+    //relink
+    list->next = head;
+
     return 0;
 }
 
@@ -626,7 +635,7 @@ int get_number_of_slot_list(slot_list *head) {
     do {
         count++;
         count_head = count_head->next;
-    } while(count_head != NULL);
+    } while(count_head != NULL && count_head != head);
 
     return count;
 }
@@ -666,7 +675,15 @@ static queue_list *add_queue_to_list(queue_list *prev, int queue_number) {
 
     new->next = NULL;
 
+    new->activity = 0ull;
+    new->fill_state = 0ull;
+    new->complete = 0ull;
+    new->slot_mask = 0ull;
+
     new->slots = NULL;
+    new->new_task_ptr = NULL; //front
+    new->collect_ptr = NULL; //rear
+    new->active_ptr = NULL; //middle
 
     new->queue_number = queue_number;
 
@@ -738,8 +755,4 @@ int get_number_of_queue_list(queue_list *head) {
     } while(count_head != NULL);
 
     return count;
-}
-
-void queue_list_set_slots(queue_list **list, slot_list *slots) {
-    (*list)->slots = slots;
 }

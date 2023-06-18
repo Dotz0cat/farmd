@@ -76,7 +76,8 @@ enum tree_crop {
 #define SPECIAL_ITEM_TABLE \
 X(NONE_SPECIAL, "none", 0, 0, NONE_PRODUCT, NONE_STORAGE), \
 X(BARN_UPGRADE_ITEM, "BarnUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN), \
-X(SILO_UPGRADE_ITEM, "SiloUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN)
+X(SILO_UPGRADE_ITEM, "SiloUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN), \
+X(GRAIN_MILL_UPGRADE_ITEM, "GrainMillUpgradeItem", 100, 2, SPECIAL_PRODUCT, BARN)
 
 #define X(a, b, c, d, e, f) a
 enum special_item {
@@ -137,6 +138,8 @@ struct _slot_list {
 
     int completion;
 
+    unsigned long long mask;
+
     void *event;
 
     void *next;
@@ -147,7 +150,17 @@ typedef struct _queue_list queue_list;
 struct _queue_list {
     int queue_number;
 
+    unsigned long long activity;
+    unsigned long long fill_state;
+    unsigned long long complete;
+
+    unsigned long long slot_mask;
+
     slot_list *slots;
+
+    slot_list *new_task_ptr;
+    slot_list *collect_ptr;
+    slot_list *active_ptr;
 
     void *next;
 };
@@ -201,7 +214,7 @@ enum storage get_storage_type_processed_item(const enum processed_item type);
 enum item_type get_product_type_processed_item(const enum processed_item type);
 
 queue_list *make_queue_list(const int number_of_queues);
-int amend_slot_list(slot_list *head, const int new_number);
+int amend_queue_list(queue_list *head, const int new_number);
 int get_number_of_queue_list(queue_list *head);
 
 #endif /* LIST_H */

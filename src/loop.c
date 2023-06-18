@@ -31,6 +31,7 @@ void loop_run(loop_context *context) {
     context->db = NULL;
     context->tree_list = NULL;
     context->field_list = NULL;
+    context->grain_mill_queue = NULL;
 
     context->event_box->http_base = NULL;
     context->event_box->https_base = NULL;
@@ -131,46 +132,51 @@ static void set_callbacks(struct evhttp *base, loop_context *context) {
     };
 
     struct cb_table callbacks[] = {
-        {"/barn/query",          barn_query_cb},
-        {"/silo/query",          silo_query_cb},
-        {"/createSave",          create_save_cb},
-        {"/openSave",            open_save_cb},
-        {"/closeSave",           close_save_cb},
-        {"/pingSave",            ping_save_cb},
-        {"/barn/allocation",     get_barn_allocation_cb},
-        {"/silo/allocation",     get_silo_allocation_cb},
-        {"/getMoney",            get_money_cb},
-        {"/getLevel",            get_level_cb},
-        {"/getXp",               get_xp_cb},
-        {"/getSkillPoints",      get_skill_points_cb},
-        {"/getSkillStatus",      get_skill_status_cb},
-        {"/version",             get_version_cb},
-        {"/barn/max",            get_barn_max_cb},
-        {"/silo/max",            get_silo_max_cb},
-        {"/field/plant",         plant_cb},
-        {"/field/harvest",       field_harvest_cb},
-        {"/field/status",        field_status_cb},
-        {"/field/buy",           buy_field_cb},
-        {"/buy/field",           buy_field_cb},
-        {"/tree/buy",            buy_tree_plot_cb},
-        {"/buy/tree",            buy_tree_plot_cb},
-        {"/buy/skill",           buy_skill_cb},
-        {"/skill/buy",           buy_skill_cb},
-        {"/tree/plant",          plant_tree_cb},
-        {"/tree/harvest",        tree_harvest_cb},
-        {"/tree/status",         tree_status_cb},
-        {"/buy/item",            buy_item_cb},
-        {"/sell/item",           sell_item_cb},
-        {"/buy/price",           item_buy_price_cb},
-        {"/sell/price",          item_sell_price_cb},
-        {"/barn/level",          get_barn_level_cb},
-        {"/silo/level",          get_silo_level_cb},
-        {"/barn/upgrade",        upgrade_barn_cb},
-        {"/silo/upgrade",        upgrade_silo_cb},
-        {"/barn/upgrade/cost",  get_barn_upgrade_cost_cb},
-        {"/silo/upgrade/cost",  get_silo_upgrade_cost_cb},
-        {"/barn/upgrade/stats",  get_barn_next_level_cb},
-        {"/silo/upgrade/stats",  get_silo_next_level_cb},
+        {"/barn/query",                 barn_query_cb},
+        {"/silo/query",                 silo_query_cb},
+        {"/createSave",                 create_save_cb},
+        {"/openSave",                   open_save_cb},
+        {"/closeSave",                  close_save_cb},
+        {"/pingSave",                   ping_save_cb},
+        {"/barn/allocation",            get_barn_allocation_cb},
+        {"/silo/allocation",            get_silo_allocation_cb},
+        {"/getMoney",                   get_money_cb},
+        {"/getLevel",                   get_level_cb},
+        {"/getXp",                      get_xp_cb},
+        {"/getSkillPoints",             get_skill_points_cb},
+        {"/getSkillStatus",             get_skill_status_cb},
+        {"/version",                    get_version_cb},
+        {"/barn/max",                   get_barn_max_cb},
+        {"/silo/max",                   get_silo_max_cb},
+        {"/field/plant",                plant_cb},
+        {"/field/harvest",              field_harvest_cb},
+        {"/field/status",               field_status_cb},
+        {"/field/buy",                  buy_field_cb},
+        {"/buy/field",                  buy_field_cb},
+        {"/tree/buy",                   buy_tree_plot_cb},
+        {"/buy/tree",                   buy_tree_plot_cb},
+        {"/buy/skill",                  buy_skill_cb},
+        {"/skill/buy",                  buy_skill_cb},
+        {"/tree/plant",                 plant_tree_cb},
+        {"/tree/harvest",               tree_harvest_cb},
+        {"/tree/status",                tree_status_cb},
+        {"/buy/item",                   buy_item_cb},
+        {"/sell/item",                  sell_item_cb},
+        {"/buy/price",                  item_buy_price_cb},
+        {"/sell/price",                 item_sell_price_cb},
+        {"/barn/level",                 get_barn_level_cb},
+        {"/silo/level",                 get_silo_level_cb},
+        {"/barn/upgrade",               upgrade_barn_cb},
+        {"/silo/upgrade",               upgrade_silo_cb},
+        {"/barn/upgrade/cost",          get_barn_upgrade_cost_cb},
+        {"/silo/upgrade/cost",          get_silo_upgrade_cost_cb},
+        {"/barn/upgrade/stats",         get_barn_next_level_cb},
+        {"/silo/upgrade/stats",         get_silo_next_level_cb},
+        {"/grainMill/buy",              buy_grain_mill_cb},
+        {"/grainMill/buy/cost",         grain_mill_buy_cost_cb},
+        {"/grainMill/upgrade",          grain_mill_upgrade_cb},
+        {"/grainMill/upgrade/cost",     grain_mill_upgrade_cost_cb},
+        {"/grainMill/upgrade/stats",    grain_mill_next_level_stats_cb},
     };
 
     for (int i = 0; i < (int) (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
@@ -1150,4 +1156,69 @@ static void get_silo_next_level_cb(struct evhttp_request *req, void *arg) {
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);
+}
+
+static void buy_grain_mill_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_POST)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = buy_grain_mill(context->db, &context->grain_mill_queue, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);   
+}
+
+static void grain_mill_buy_cost_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_GET)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = get_grain_mill_buy_cost(context->db, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);   
+}
+
+static void grain_mill_upgrade_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_POST)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = upgrade_grain_mill(context->db, &context->grain_mill_queue, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);   
+}
+
+static void grain_mill_upgrade_cost_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_GET)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = get_grain_mill_upgrade_cost(context->db, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);   
+}
+
+static void grain_mill_next_level_stats_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_GET)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = get_grain_mill_next_level_stats(context->db, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);   
 }

@@ -33,5 +33,10 @@ void populate_grain_mill(sqlite3 *db, queue_list **queue, struct event_base *bas
 void ping_grain_mill(sqlite3 *db);
 void free_queue_list(queue_list **head);
 void free_slot_list(slot_list **head);
+struct evbuffer *buy_grain_mill(sqlite3 *db, queue_list **queue, int *code);
+struct evbuffer *get_grain_mill_buy_cost(sqlite3 *db, int *code);
+struct evbuffer *upgrade_grain_mill(sqlite3 *db, queue_list **queue, int *code);
+struct evbuffer *get_grain_mill_upgrade_cost(sqlite3 *db, int *code);
+struct evbuffer *get_grain_mill_next_level_stats(sqlite3 *db, int *code);
 
 #endif /* GRAIN_MILL_H */

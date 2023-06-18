@@ -29,7 +29,10 @@ static const struct timeval grain_mill_times[] = {
 };
 #undef X
 
-static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, int queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
-static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, int queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
+#define GRAIN_MILL_BUY_COST 1000
+#define GRAIN_MILL_LEVEL_COST 5
+
+static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
+static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
 
 #endif /* GRAIN_MILL_PRIVATE_H */

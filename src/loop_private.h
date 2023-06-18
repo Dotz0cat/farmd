@@ -148,4 +148,10 @@ static void get_silo_upgrade_cost_cb(struct evhttp_request *req, void *arg);
 static void get_barn_next_level_cb(struct evhttp_request *req, void *arg);
 static void get_silo_next_level_cb(struct evhttp_request *req, void *arg);
 
+static void buy_grain_mill_cb(struct evhttp_request *req, void *arg);
+static void grain_mill_buy_cost_cb(struct evhttp_request *req, void *arg);
+static void grain_mill_upgrade_cb(struct evhttp_request *req, void *arg);
+static void grain_mill_upgrade_cost_cb(struct evhttp_request *req, void *arg);
+static void grain_mill_next_level_stats_cb(struct evhttp_request *req, void *arg);
+
 #endif /* LOOP_PRIVATE_H */
