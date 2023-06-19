@@ -17,7 +17,6 @@ This file is part of farmd.
     along with farmd.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #ifndef LIST_PRIVATE_H
 #define LIST_PRIVATE_H
 

@@ -54,6 +54,15 @@ enum consume_or_buy_errors {
     COULD_NOT_CONSUME_OR_BUY,
 };
 
+//useful struct that almost every processing file will need
+struct recipes {
+    enum processed_item product;
+
+    struct any_item ingredient;
+
+    int quanity;
+};
+
 void xp_check(sqlite3 *db);
 struct evbuffer *view_money(sqlite3 *db, int *code);
 struct evbuffer *view_level(sqlite3 *db, int *code);

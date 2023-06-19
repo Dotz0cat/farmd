@@ -177,6 +177,8 @@ static void set_callbacks(struct evhttp *base, loop_context *context) {
         {"/grainMill/upgrade",          grain_mill_upgrade_cb},
         {"/grainMill/upgrade/cost",     grain_mill_upgrade_cost_cb},
         {"/grainMill/upgrade/stats",    grain_mill_next_level_stats_cb},
+        {"/grainMill/collect",          collect_from_grain_mill_cb},
+        {"/grainMill/add",              add_item_to_grain_mill_cb},
     };
 
     for (int i = 0; i < (int) (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
@@ -1221,4 +1223,46 @@ static void grain_mill_next_level_stats_cb(struct evhttp_request *req, void *arg
 
     evhttp_send_reply(req, code, "Client", returnbuffer);
     evbuffer_free(returnbuffer);   
+}
+
+static void collect_from_grain_mill_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_POST)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = collect_grain_mill_procducts(context->db, context->grain_mill_queue, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer); 
+}
+
+static void add_item_to_grain_mill_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_POST)
+
+    const char *query;
+    GET_QUERY(req, query)
+
+    char *post_arg = NULL;
+    GET_POST_ARG_IF_NO_QUERY(query, post_arg, req)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = add_item_to_grain_mill_queue(context->db, context->grain_mill_queue, query, context->event_box->base, grain_mill_ready_cb, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer); 
+
+    if (post_arg != NULL) {
+        free(post_arg);
+    }
+}
+
+static void grain_mill_ready_cb(evutil_socket_t fd, short events, void *arg) {
+    struct box_for_list_and_db *box = arg;
+
+    mark_grain_mill_item_as_complete(box->db, box->list);
 }

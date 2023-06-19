@@ -1923,7 +1923,7 @@ int add_slot_to_grain_mill(sqlite3 *db, const int queue_index, const int slot_in
     return 0;
 }
 
-int set_type_grain_mill(sqlite3 *db, const int queue_index, const int slot_index, const char *type) {
+int set_grain_mill_type(sqlite3 *db, const int queue_index, const int slot_index, const char *type) {
     sqlite3_stmt *stmt;
 
     char *sql = "UPDATE GrainMill SET Type = ? WHERE QueueIndex == ? AND SlotIndex == ?;";
@@ -1932,8 +1932,9 @@ int set_type_grain_mill(sqlite3 *db, const int queue_index, const int slot_index
 
     if (rc == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, type, -1, NULL);
-        sqlite3_bind_int(stmt, 2, slot_index);
-        sqlite3_bind_int(stmt, 3, queue_index);
+        sqlite3_bind_int(stmt, 2, queue_index);
+        sqlite3_bind_int(stmt, 3, slot_index);
+        
     }
     else {
         syslog(LOG_WARNING, "sqlite3 error: %s", sqlite3_errmsg(db));
@@ -2136,7 +2137,7 @@ time_t get_grain_mill_start_time(sqlite3 *db, const int queue_index, const int s
 int clear_grain_mill_time(sqlite3 *db, const int queue_index, const int slot_index) {
     sqlite3_stmt *stmt;
 
-    char *sql = "UPDATE GrainMill SET StartTime = NULL, EndTime = NULL WHERE QueueIndex == 0 AND SlotIndex == 1;";
+    char *sql = "UPDATE GrainMill SET StartTime = NULL, EndTime = NULL WHERE QueueIndex == ? AND SlotIndex == ?;";
 
     int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 

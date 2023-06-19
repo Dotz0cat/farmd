@@ -83,6 +83,7 @@ static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, queue_list *q
             if (first_filled == 0) {
                 queue->collect_ptr = list;
             }
+            first_filled++;
             //set each time so whenever it is last set it will be the last
             queue->new_task_ptr = list;
         }
@@ -104,6 +105,12 @@ static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list
         else if (start_time_from_db > now) {
             //start time is in the future
             list->completion = 0;
+            //make the event
+            struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+            box->list = queue;
+            box->db = db;
+
+            list->event = event_new(base, -1, 0, cb, box);
         }
         else {
             //make an event as it has started and not finshed
@@ -121,6 +128,14 @@ static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list
                 event_add(list->event, &tv);
                 queue->activity |= list->mask;
                 queue->active_ptr = list;
+            }
+            else {
+                //just make the event
+                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+                box->list = queue;
+                box->db = db;
+
+                list->event = event_new(base, -1, 0, cb, box);
             }
         }
     }
@@ -562,4 +577,290 @@ struct evbuffer *get_grain_mill_next_level_stats(sqlite3 *db, int *code) {
     evbuffer_add_printf(returnbuffer, "Stats:\r\nLevel: %d\r\nQueues: %d\r\n", current_level, current_queues);
     SET_CODE_OK(code)
     return returnbuffer;
+}
+
+struct evbuffer *collect_grain_mill_procducts(sqlite3 *db, queue_list *queue, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+
+    //get queue list to incriment through
+    queue_list *q_list = queue;
+    while (q_list != NULL) {
+        //check the masks. if there is none compelete it will move to next queue
+        if ((q_list->complete & q_list->slot_mask) == 0) {
+            q_list = q_list->next;
+            continue;
+        }
+        //get slot list at collect_ptr
+        slot_list *s_list = q_list->collect_ptr;
+
+        //test to make sure it is not equal to active_ptr
+        if (s_list == q_list->active_ptr) {
+            //if equal to 0 then it is full
+            //if there is no activity then don't go to next queue
+            if ((q_list->fill_state ^ q_list->slot_mask) != 0 || (q_list->activity & q_list->slot_mask) != 0) {
+                q_list = q_list->next;
+                continue;
+            }
+        }
+
+        while (s_list != q_list->active_ptr || (q_list->fill_state ^ q_list->slot_mask) == 0) {
+            //collect item
+            if (s_list->completion == 1 && s_list->type != NONE_PROCESS && (q_list->complete & s_list->mask) != 0) {
+                switch (add_to_storage(db, processed_item_enum_to_string(s_list->type), 1)) {
+                    case (NO_STORAGE_ERROR): {
+                        break;
+                    }
+                    case (BARN_UPDATE): {
+                        evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (BARN_ADD): {
+                        evbuffer_add_printf(returnbuffer, "error adding item to barn\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (BARN_SIZE): {
+                        evbuffer_add_printf(returnbuffer, "could not collect due to barn size\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (SILO_UPDATE): {
+                        evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (SILO_ADD): {
+                        evbuffer_add_printf(returnbuffer, "error adding item to silo\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (SILO_SIZE): {
+                        evbuffer_add_printf(returnbuffer, "could not collect due to silo size\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                    case (STORAGE_NOT_HANDLED): {
+                        evbuffer_add_printf(returnbuffer, "could not collect due to not being implemented\r\n");
+                        SET_CODE_INTERNAL_ERROR(code)
+                        return returnbuffer;
+                        break;
+                    }
+                }
+                //item got collected
+                s_list->type = NONE_PROCESS;
+                s_list->completion = 0;
+                //remove from the queue's tracking
+                q_list->complete = (q_list->complete ^ s_list->mask) & q_list->slot_mask;
+                q_list->fill_state = (q_list->fill_state ^ s_list->mask) & q_list->slot_mask;
+
+                //db
+                set_grain_mill_completion(db, q_list->queue_number, s_list->slot_number, 0);
+                set_grain_mill_type(db, q_list->queue_number, s_list->slot_number, processed_item_enum_to_string(NONE_PROCESS));
+                clear_grain_mill_time(db, q_list->queue_number, s_list->slot_number);
+
+                update_meta(db, 2, "xp");
+                xp_check(db);
+            }
+
+            //increment s_list and collect_ptr
+            s_list = s_list->next;
+            q_list->collect_ptr = s_list;
+        }
+
+        q_list = q_list->next;
+    }
+
+    SET_CODE_OK(code)
+    return returnbuffer;
+}
+
+struct evbuffer *add_item_to_grain_mill_queue(sqlite3 *db, queue_list *queue, const char *product, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg), int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+
+    enum processed_item item = processed_item_string_to_enum(product);
+
+    if (item == NONE_PROCESS || get_product_type_processed_item(item) != GRAIN_MILL_PRODUCT) {
+        evbuffer_add_printf(returnbuffer, "invalid product for grain mill\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
+    struct recipes recipe = grain_mill_recipes[item];
+    const char *sanitized_string_product = processed_item_enum_to_string(item);
+    const char *sanitized_string_ingredient = any_item_enum_to_string(recipe.ingredient);
+
+    if (items_available(db, sanitized_string_ingredient, recipe.quanity) == 0) {
+        evbuffer_add_printf(returnbuffer, "not enough %s to make %s\r\n", sanitized_string_ingredient, sanitized_string_product);
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
+    //test for openings in queue
+    queue_list *q_list = queue;
+    int open_slots = 0;
+    while (q_list != NULL) {
+        if ((q_list->fill_state ^ q_list->slot_mask) != 0) {
+            open_slots++;
+        }
+        q_list = q_list->next;
+    }
+
+    if (open_slots == 0) {
+        evbuffer_add_printf(returnbuffer, "no slots open in grain mill queue\r\n");
+        SET_CODE_INTERNAL_ERROR(code)
+        return returnbuffer;
+    }
+
+    //remove item
+    switch (remove_from_storage(db, sanitized_string_ingredient, recipe.quanity)) {
+        case (NO_STORAGE_ERROR): {
+            break;
+        }
+        case (BARN_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating barn\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (BARN_SIZE): {
+            evbuffer_add_printf(returnbuffer, "not enough %s in barn\r\n", sanitized_string_ingredient);
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (SILO_UPDATE): {
+            evbuffer_add_printf(returnbuffer, "error updating silo\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (SILO_SIZE): {
+            evbuffer_add_printf(returnbuffer, "not enough %s in silo\r\n", sanitized_string_ingredient);
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+        case (BARN_ADD):
+        case (SILO_ADD):
+        case (STORAGE_NOT_HANDLED): {
+            evbuffer_add_printf(returnbuffer, "storage not handled\r\n");
+            SET_CODE_INTERNAL_ERROR(code)
+            return returnbuffer;
+            break;
+        }
+    }
+
+    //add to queue
+    //reset
+    //simple queue filling algroithum
+    q_list = queue;
+    while (q_list != NULL) {
+        if ((q_list->fill_state ^ q_list->slot_mask) == 0) {
+            //queue is full
+            q_list = q_list->next;
+            continue;
+        }
+
+        slot_list *s_list_new = q_list->new_task_ptr;
+        slot_list *s_list_active = q_list->active_ptr;
+        time_t start_time = 0;
+        if ((q_list->activity & q_list->slot_mask) == 0 || s_list_new == s_list_active) {
+            //case is either all new queue or empty
+            start_time = time(NULL);
+        }
+        else if (s_list_active->next == s_list_new) {
+            start_time = get_grain_mill_end_time(db, q_list->queue_number, s_list_active->slot_number);
+        }
+        else {
+            //increment s_list_active until s_list_active->next == s_list_new
+            while (s_list_active->next != s_list_new) {
+                s_list_active = s_list_active->next;
+            }
+            start_time = get_grain_mill_end_time(db, q_list->queue_number, s_list_active->slot_number);
+        }
+
+        if (s_list_new->type == NONE_PROCESS && (q_list->fill_state & s_list_new->mask) == 0) {
+            if (s_list_new->event == NULL) {
+                //make the event
+                struct box_for_list_and_db *box = malloc(sizeof(struct box_for_list_and_db));
+                box->db = db;
+                box->list = queue;
+
+                s_list_new->event = event_new(base, -1, 0, cb, box);
+
+                if (s_list_new->event == NULL) {
+                    evbuffer_add_printf(returnbuffer, "error making event\r\n");
+                    SET_CODE_INTERNAL_ERROR(code);
+                    return returnbuffer;
+                }
+            }
+
+            s_list_new->type = item;
+            set_grain_mill_completion(db, q_list->queue_number, s_list_new->slot_number, 0);
+            set_grain_mill_type(db, q_list->queue_number, s_list_new->slot_number, sanitized_string_product);
+            set_grain_mill_start_time(db, q_list->queue_number, s_list_new->slot_number, start_time);
+
+            const struct timeval tv = grain_mill_times[item];
+            set_grain_mill_end_time(db, q_list->queue_number, s_list_new->slot_number, start_time + tv.tv_sec);
+
+            q_list->fill_state |= s_list_new->mask;
+
+            if (q_list->activity == 0) {
+                q_list->activity |= s_list_new->mask;
+                int rc = event_add(s_list_new->event, &tv);
+                if (rc != 0) {
+                    evbuffer_add_printf(returnbuffer, "error adding event\r\n");
+                    SET_CODE_INTERNAL_ERROR(code)
+                    return returnbuffer;
+                }
+            }
+
+            s_list_new = s_list_new->next;
+            q_list->new_task_ptr = s_list_new;
+            break;
+        }
+        q_list = q_list->next;
+    }
+
+
+    SET_CODE_OK(code)
+    return returnbuffer;
+}
+
+void mark_grain_mill_item_as_complete(sqlite3 *db, queue_list *queue) {
+    queue_list *q_list = queue;
+    slot_list *s_list = q_list->active_ptr;
+
+    s_list->completion = 1;
+    set_grain_mill_completion(db, q_list->queue_number, s_list->slot_number, 1);
+
+    q_list->complete |= s_list->mask;
+
+    q_list->activity = q_list->activity ^ s_list->mask;
+
+    s_list = s_list->next;
+
+    if (s_list->event != NULL && s_list->type != NONE_PROCESS && (q_list->fill_state & s_list->mask) != 0) {
+        const struct timeval tv = grain_mill_times[s_list->type];
+        int rc = event_add(s_list->event, &tv);
+        if (rc != 0) {
+            syslog(LOG_WARNING, "error adding event grain mill queue%d slot%d", q_list->queue_number, s_list->slot_number);
+            return;
+        }
+
+        q_list->activity |= s_list->mask;
+    }
+
+    q_list->active_ptr = s_list;
 }

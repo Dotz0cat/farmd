@@ -115,7 +115,7 @@ int set_field_completion(sqlite3 *db, const int index, const int completion);
 int get_field_completion(sqlite3 *db, const int index);
 
 int add_slot_to_grain_mill(sqlite3 *db, const int queue_index, const int slot_index);
-int set_type_grain_mill(sqlite3 *db, const int queue_index, const int slot_index, const char *type);
+int set_grain_mill_type(sqlite3 *db, const int queue_index, const int slot_index, const char *type);
 char *get_grain_mill_type(sqlite3 *db, const int queue_index, const int slot_index);
 int set_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index, const time_t time);
 time_t get_grain_mill_end_time(sqlite3 *db, const int queue_index, const int slot_index);
