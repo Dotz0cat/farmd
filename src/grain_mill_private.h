@@ -32,18 +32,23 @@ static const struct timeval grain_mill_times[] = {
 #define GRAIN_MILL_BUY_COST 1000
 #define GRAIN_MILL_LEVEL_COST 5
 
-//produt to make, single ingredient, ingredient type, quanity for 1
+//product to make, single ingredient, ingredient type, type for union quanity for 1
 #define GRAIN_MILL_RECIPE_TABLE \
-X(WHEAT_FLOUR, WHEAT, FIELD_PRODUCT, 2), \
-X(CORN_MEAL, CORN, FIELD_PRODUCT, 2),
+X(WHEAT_FLOUR, WHEAT, FIELD_PRODUCT, field_item, 2), \
+X(CORN_MEAL, CORN, FIELD_PRODUCT, field_item, 2),
 
-#define X(a, b, c, d) [a]={a, {c, b}, d}
+#define X(a, b, c, d, e) [a]={a, {c, .d = b}, e}
 static const struct recipes grain_mill_recipes[] = {
     GRAIN_MILL_RECIPE_TABLE
 };
 #undef X
 
+struct time_and_ptr {
+    time_t time;
+    slot_list *slot;
+};
+
 static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
-static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
+static struct time_and_ptr setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg));
 
 #endif /* GRAIN_MILL_PRIVATE_H */

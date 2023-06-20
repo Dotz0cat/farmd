@@ -34,11 +34,11 @@ void populate_grain_mill(sqlite3 *db, queue_list **queue, struct event_base *bas
         if (list->collect_ptr == NULL) {
             list->collect_ptr = list->slots;
         }
-        if (list->active_ptr == NULL) {
-            list->active_ptr = list->slots;
-        }
         if (list->new_task_ptr == NULL) {
             list->new_task_ptr = list->slots;
+        }
+        if (list->active_ptr == NULL) {
+            list->active_ptr = list->new_task_ptr;
         }
     }
 
@@ -69,7 +69,8 @@ static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, queue_list *q
         return;
     }
     slot_list *list = *slots;
-    int first_filled = 0;
+    struct time_and_ptr least_time = {0, NULL};
+    struct time_and_ptr greatest_time = {0, NULL};
     for (int i = 0; i < number_of_slots; i++) {
         char *slot_type = get_grain_mill_type(db, queue->queue_number, i);
         list->type = processed_item_string_to_enum(slot_type);
@@ -79,22 +80,29 @@ static void setup_grain_mill_queue(sqlite3 *db, slot_list **slots, queue_list *q
 
         if (list->type != NONE_PROCESS) {
             queue->fill_state |= list->mask;
-            setup_grain_mill_completion(db, list, queue, base, cb);
-            if (first_filled == 0) {
-                queue->collect_ptr = list;
+            struct time_and_ptr current = setup_grain_mill_completion(db, list, queue, base, cb);
+            if (least_time.time == 0 || current.time < least_time.time) {
+                least_time = current;
             }
-            first_filled++;
-            //set each time so whenever it is last set it will be the last
-            queue->new_task_ptr = list;
+            if (greatest_time.time == 0 || current.time > greatest_time.time) {
+                greatest_time = current;
+            }
         }
         list = list->next;
     }
+
+    if (least_time.time != 0 && least_time.slot != NULL) {
+        queue->collect_ptr = least_time.slot;
+    }
+    if (greatest_time.time != 0 && greatest_time.slot != NULL) {
+            queue->new_task_ptr = greatest_time.slot->next;
+    }
 }
 
-static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+static struct time_and_ptr setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list *queue, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg)) {
+    time_t start_time_from_db = get_grain_mill_start_time(db, queue->queue_number, list->slot_number);
     if (get_grain_mill_completion(db, queue->queue_number, list->slot_number) == 0) {
         time_t now = time(NULL);
-        time_t start_time_from_db = get_grain_mill_start_time(db, queue->queue_number, list->slot_number);
         time_t end_time_from_db = get_grain_mill_end_time(db, queue->queue_number, list->slot_number);
 
         if (end_time_from_db <= now) {
@@ -143,6 +151,8 @@ static void setup_grain_mill_completion(sqlite3 *db, slot_list *list, queue_list
         list->completion = 1;
         queue->complete |= list->mask;
     }
+    struct time_and_ptr time_and_ptr= {start_time_from_db, list};
+    return time_and_ptr;
 }
 
 void ping_grain_mill(sqlite3 *db) {
@@ -595,18 +605,7 @@ struct evbuffer *collect_grain_mill_procducts(sqlite3 *db, queue_list *queue, in
         //get slot list at collect_ptr
         slot_list *s_list = q_list->collect_ptr;
 
-        //test to make sure it is not equal to active_ptr
-        if (s_list == q_list->active_ptr) {
-            //if equal to 0 then it is full
-            //if there is no activity then don't go to next queue
-            if ((q_list->fill_state ^ q_list->slot_mask) != 0 || (q_list->activity & q_list->slot_mask) != 0) {
-                q_list = q_list->next;
-                continue;
-            }
-        }
-
-        while (s_list != q_list->active_ptr || (q_list->fill_state ^ q_list->slot_mask) == 0) {
-            //collect item
+        while ((q_list->complete & q_list->slot_mask) != 0) {
             if (s_list->completion == 1 && s_list->type != NONE_PROCESS && (q_list->complete & s_list->mask) != 0) {
                 switch (add_to_storage(db, processed_item_enum_to_string(s_list->type), 1)) {
                     case (NO_STORAGE_ERROR): {
@@ -710,7 +709,8 @@ struct evbuffer *add_item_to_grain_mill_queue(sqlite3 *db, queue_list *queue, co
     queue_list *q_list = queue;
     int open_slots = 0;
     while (q_list != NULL) {
-        if ((q_list->fill_state ^ q_list->slot_mask) != 0) {
+        // anded in case there is somehow junk in fill state
+        if (((q_list->fill_state ^ q_list->slot_mask) & q_list->slot_mask) != 0) {
             open_slots++;
         }
         q_list = q_list->next;
@@ -773,21 +773,19 @@ struct evbuffer *add_item_to_grain_mill_queue(sqlite3 *db, queue_list *queue, co
         }
 
         slot_list *s_list_new = q_list->new_task_ptr;
-        slot_list *s_list_active = q_list->active_ptr;
         time_t start_time = 0;
-        if ((q_list->activity & q_list->slot_mask) == 0 || s_list_new == s_list_active) {
+        if ((q_list->activity & q_list->slot_mask) == 0) {
             //case is either all new queue or empty
             start_time = time(NULL);
         }
-        else if (s_list_active->next == s_list_new) {
-            start_time = get_grain_mill_end_time(db, q_list->queue_number, s_list_active->slot_number);
-        }
         else {
-            //increment s_list_active until s_list_active->next == s_list_new
-            while (s_list_active->next != s_list_new) {
-                s_list_active = s_list_active->next;
+            slot_list *before_new = s_list_new->prev;
+            if (before_new->completion == 1 && (q_list->complete & before_new->mask) != 0) {
+                start_time = time(NULL);
             }
-            start_time = get_grain_mill_end_time(db, q_list->queue_number, s_list_active->slot_number);
+            else {
+                start_time = get_grain_mill_end_time(db, q_list->queue_number, before_new->slot_number);
+            }
         }
 
         if (s_list_new->type == NONE_PROCESS && (q_list->fill_state & s_list_new->mask) == 0) {
@@ -861,6 +859,38 @@ void mark_grain_mill_item_as_complete(sqlite3 *db, queue_list *queue) {
 
         q_list->activity |= s_list->mask;
     }
-
     q_list->active_ptr = s_list;
+}
+
+struct evbuffer *print_out_grain_mill_queue(sqlite3 *db, queue_list *queue, int *code) {
+    struct evbuffer *returnbuffer = evbuffer_new();
+
+    CHECK_SAVE_OPEN(db, returnbuffer, code)
+
+    queue_list *q_list = queue;
+    while (q_list != NULL) {
+        evbuffer_add_printf(returnbuffer, "Queue%d:\r\n", q_list->queue_number);
+        slot_list *s_list = q_list->slots;
+        do {
+            evbuffer_add_printf(returnbuffer, "slot%d: %s", s_list->slot_number, processed_item_enum_to_string(s_list->type));
+            evbuffer_add_printf(returnbuffer, " %s ", (q_list->fill_state & s_list->mask) ? "filled" : "not filled");
+            evbuffer_add_printf(returnbuffer, "%s ", (q_list->complete & s_list->mask) ? "ready" : "not ready");
+            evbuffer_add_printf(returnbuffer, "%s ", (q_list->activity & s_list->mask) ? "active" : "not active");
+            if (s_list == q_list->collect_ptr) {
+                evbuffer_add_printf(returnbuffer, "collect_ptr ");
+            }
+            if (s_list == q_list->active_ptr) {
+                evbuffer_add_printf(returnbuffer, "active_ptr ");
+            }
+            if (s_list == q_list->new_task_ptr) {
+                evbuffer_add_printf(returnbuffer, "new_task_ptr");
+            }
+            evbuffer_add_printf(returnbuffer, "\r\n");
+            s_list = s_list->next;
+        } while (s_list != q_list->slots);
+        q_list = q_list->next;
+    }
+
+    SET_CODE_OK(code)
+    return returnbuffer;
 }

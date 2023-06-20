@@ -179,6 +179,7 @@ static void set_callbacks(struct evhttp *base, loop_context *context) {
         {"/grainMill/upgrade/stats",    grain_mill_next_level_stats_cb},
         {"/grainMill/collect",          collect_from_grain_mill_cb},
         {"/grainMill/add",              add_item_to_grain_mill_cb},
+        {"/grainMill/status",           grain_mill_status_cb},
     };
 
     for (int i = 0; i < (int) (sizeof(callbacks) / sizeof(callbacks[0])); i++) {
@@ -629,7 +630,7 @@ static int open_save(const char *file_name, loop_context *context) {
 
     populate_trees(context->db, &context->tree_list, context->event_box->base, tree_mature_cb, tree_harvest_ready_cb);
 
-    populate_grain_mill(context->db, &context->grain_mill_queue, context->event_box->base, NULL);
+    populate_grain_mill(context->db, &context->grain_mill_queue, context->event_box->base, grain_mill_ready_cb);
 
     return 0;
 }
@@ -1265,4 +1266,17 @@ static void grain_mill_ready_cb(evutil_socket_t fd, short events, void *arg) {
     struct box_for_list_and_db *box = arg;
 
     mark_grain_mill_item_as_complete(box->db, box->list);
+}
+
+static void grain_mill_status_cb(struct evhttp_request *req, void *arg) {
+    loop_context *context = arg;
+
+    TEST_METHOD(req, EVHTTP_REQ_GET)
+
+    int code = 0;
+    struct evbuffer *returnbuffer;
+    returnbuffer = print_out_grain_mill_queue(context->db, context->grain_mill_queue, &code);
+
+    evhttp_send_reply(req, code, "Client", returnbuffer);
+    evbuffer_free(returnbuffer);
 }

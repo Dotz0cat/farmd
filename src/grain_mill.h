@@ -41,5 +41,6 @@ struct evbuffer *get_grain_mill_next_level_stats(sqlite3 *db, int *code);
 struct evbuffer *collect_grain_mill_procducts(sqlite3 *db, queue_list *queue, int *code);
 struct evbuffer *add_item_to_grain_mill_queue(sqlite3 *db, queue_list *queue, const char *product, struct event_base *base, void (*cb)(evutil_socket_t fd, short events, void *arg), int *code);
 void mark_grain_mill_item_as_complete(sqlite3 *db, queue_list *queue);
+struct evbuffer *print_out_grain_mill_queue(sqlite3 *db, queue_list *queue, int *code);
 
 #endif /* GRAIN_MILL_H */

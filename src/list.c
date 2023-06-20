@@ -196,6 +196,7 @@ static slot_list *add_slot_to_list(slot_list *prev, int slot_number) {
     new->type = NONE_PROCESS;
 
     new->next = NULL;
+    new->prev = NULL;
 
     new->mask = 0ull;
     new->mask |= 1 << slot_number;
@@ -206,6 +207,7 @@ static slot_list *add_slot_to_list(slot_list *prev, int slot_number) {
 
     if (prev != NULL) {
         prev->next = new;
+        new->prev = prev;
     }
 
     return new;
@@ -229,6 +231,7 @@ slot_list *make_slot_list(const int number_of_slots) {
 
     //make circular
     add_head->next = list;
+    list->prev = add_head;
 
     return list;
 }

@@ -67,6 +67,7 @@ struct _slot_list {
     void *event;
 
     void *next;
+    void *prev;
 };
 
 typedef struct _queue_list queue_list;

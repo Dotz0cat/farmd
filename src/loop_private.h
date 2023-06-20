@@ -157,5 +157,6 @@ static void grain_mill_next_level_stats_cb(struct evhttp_request *req, void *arg
 static void collect_from_grain_mill_cb(struct evhttp_request *req, void *arg);
 static void add_item_to_grain_mill_cb(struct evhttp_request *req, void *arg);
 static void grain_mill_ready_cb(evutil_socket_t fd, short events, void *arg);
+static void grain_mill_status_cb(struct evhttp_request *req, void *arg);
 
 #endif /* LOOP_PRIVATE_H */
